@@ -1,5 +1,5 @@
-import { clamp, round } from "./random.js";
-import { validateSkillGenome } from "./skill-genome.js";
+import { clamp, round } from "../shared/random.js";
+import { validateSkillGenome } from "../genome/skill-genome.js";
 
 export const ADMISSION_BENCHMARK_ID = "library-admission-v1";
 export const SCENARIO_BENCHMARK_ID = "scenario-runtime-v1";

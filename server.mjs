@@ -4,9 +4,9 @@ import { createServer } from "node:http";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createApiRouter } from "./src/server/api-router.mjs";
-import { SEED_SKILLS } from "./src/server/seed-skills.mjs";
-import { SkillRepository } from "./src/server/skill-repository.mjs";
+import { createApiRouter } from "./src/backend/api/router.mjs";
+import { SkillRepository } from "./src/backend/repository/skill-repository.mjs";
+import { SEED_SKILLS } from "./src/core/genome/seed-skills.js";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT || 4173);
@@ -57,14 +57,24 @@ async function readJsonBody(request) {
 
 function allowedStaticPath(pathname) {
   if (pathname === "/" || pathname.endsWith(".html") || pathname.endsWith(".css")) return true;
-  if (pathname.startsWith("/src/") && pathname.endsWith(".js") && !pathname.startsWith("/src/server/")) return true;
+  if (
+    (pathname.startsWith("/src/frontend/") || pathname.startsWith("/src/core/")) &&
+    pathname.endsWith(".js")
+  ) return true;
   if (pathname.startsWith("/docs/") && pathname.endsWith(".md")) return true;
-  if (pathname.startsWith("/schemas/") && pathname.endsWith(".json")) return true;
+  if (pathname === "/schemas/skill-genome.schema.json") return true;
+  if (pathname.startsWith("/src/contracts/") && pathname.endsWith(".json")) return true;
   return pathname.endsWith(".svg") || pathname.endsWith(".png");
 }
 
 async function serveStatic(requestPath, response) {
-  const pathname = requestPath === "/" ? "/index.html" : decodeURIComponent(requestPath);
+  const decodedPath = decodeURIComponent(requestPath);
+  const pathname =
+    decodedPath === "/"
+      ? "/index.html"
+      : decodedPath === "/schemas/skill-genome.schema.json"
+        ? "/src/contracts/skill-genome.schema.json"
+        : decodedPath;
   if (!allowedStaticPath(pathname)) {
     sendJson(response, 404, { error: "File not found" });
     return;

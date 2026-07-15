@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { convertMaterialToSkill } from "../src/discovery-engine.js";
-import { SkillRepository } from "../src/server/skill-repository.mjs";
-import { INITIAL_BROWSER_SKILL } from "../src/server/seed-skills.mjs";
+import { convertMaterialToSkill } from "../../src/core/discovery/engine.js";
+import { SkillRepository } from "../../src/backend/repository/skill-repository.mjs";
+import { INITIAL_BROWSER_SKILL } from "../../src/core/genome/seed-skills.js";
 
 test("Repository 保存 Initial Skill、版本和来源快照", () => {
   const repository = new SkillRepository(":memory:");

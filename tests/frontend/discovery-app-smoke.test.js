@@ -35,7 +35,7 @@ test("Discovery 工作台可以搜索种子索引并把 SOP 保存到隔离库",
     },
   };
 
-  await import("../src/discovery-app.js?smoke-test");
+  await import("../../src/frontend/discovery-app.js?smoke-test");
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.match(root.innerHTML, /Resilient Browser Extraction/);

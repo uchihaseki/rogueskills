@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { convertMaterialToSkill } from "../src/discovery-engine.js";
-import { capabilityProfileFromGenome, validateSkillGenome } from "../src/skill-genome.js";
+import { convertMaterialToSkill } from "../../src/core/discovery/engine.js";
+import { capabilityProfileFromGenome, validateSkillGenome } from "../../src/core/genome/skill-genome.js";
 
 test("SOP 转换结果符合正式 Skill Genome 1.0", () => {
   const genome = convertMaterialToSkill({

@@ -6,9 +6,9 @@ import {
   REGIONS,
   RUN_MODES,
 } from "./catalog.js";
-import { runScenarioBenchmark } from "./benchmark-runner.js";
-import { clamp, createRng, hashString, pick, round, shuffle } from "./random.js";
-import { capabilityProfileFromGenome } from "./skill-genome.js";
+import { runScenarioBenchmark } from "../benchmark/runner.js";
+import { clamp, createRng, hashString, pick, round, shuffle } from "../shared/random.js";
+import { capabilityProfileFromGenome } from "../genome/skill-genome.js";
 
 export const MAX_STABILITY = 12;
 export const MAX_COMPLEXITY = 8;

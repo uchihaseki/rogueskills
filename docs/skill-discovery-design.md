@@ -198,30 +198,33 @@ Human Review + Benchmark
 
 ```text
 discovery.html
-└── src/discovery-app.js
-    ├── src/discovery-engine.js
+└── src/frontend/discovery-app.js
+    ├── src/core/discovery/engine.js
     │   ├── Query Parser
     │   ├── Federated Search
-    │   ├── GitHub Adapter
     │   ├── Ranking / Deduplication
     │   ├── Safety Scanner
     │   └── SOP Converter
-    └── src/discovery-catalog.js
-        ├── Connector Registry
-        └── Local Seed Index
+    ├── src/core/discovery/catalog.js
+    │   ├── Connector Registry
+    │   └── Local Seed Index
+    └── src/frontend/api-client.js
+        └── src/backend/api/router.mjs
+            └── src/backend/connectors/discovery-gateway.mjs
+                └── GitHub Network Adapter / Credential Boundary
 ```
 
 ## 10. 后续生产化清单
 
-- 服务端 Search Gateway，集中管理平台凭证和速率限制
+- 已有基线：服务端 Search Gateway、平台凭证隔离、静态风险扫描和 Initial Library 人工晋升
 - Connector SDK 与连接器健康检查
 - 增量同步、Webhook 和 ETag 缓存
 - 内容对象存储和不可变 Revision
 - 全文检索与向量索引
 - License Policy Engine
-- Prompt Injection / Malware 静态扫描
+- Prompt Injection / Malware 静态扫描增强与策略版本化
 - LLM SOP Converter 与证据对齐
 - 自动生成 Benchmark 草案
 - 人工审核工作台
 - Skill Lineage 与 Source Cluster
-- Initial Library 发布审批
+- 多角色 Initial Library 审批和审计

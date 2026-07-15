@@ -40,6 +40,10 @@ GITHUB_TOKEN=your_token npm start
 
 ```bash
 npm test
+npm run test:frontend
+npm run test:backend
+npm run test:core
+npm run test:integration
 ```
 
 ## 已实现
@@ -66,6 +70,24 @@ npm test
 
 当前 Benchmark 是本地确定性用例执行器，不包含随机分数；它尚未调用真实 LLM 或浏览器工具。GitHub Discovery 在用户启用远程来源时会通过服务端访问 GitHub 公共 API。
 
+## 项目结构
+
+```text
+src/
+├── frontend/       浏览器界面、交互和 API Client
+├── backend/        API、Repository、外部连接器、生命周期和服务端编排
+├── core/           Benchmark、Discovery、Evolution 和 Genome 纯领域逻辑
+└── contracts/      前端、后端和算法共享的数据协议
+
+tests/
+├── frontend/
+├── backend/
+├── core/
+└── integration/
+```
+
+P1 由前端、后端和算法三人协同开发。模块归属、契约变更和集成规则见 `docs/development-ownership.md`。
+
 ## 设计文档
 
 - `design.md`：Skill Evolution 底层架构
@@ -74,3 +96,6 @@ npm test
 - `docs/prototype-development-plan.md`：原型范围、模块和验收标准
 - `docs/skill-discovery-design.md`：搜索、拉取、SOP 转换与安全入库协议
 - `docs/p0-architecture.md`：P0 Repository、Benchmark、Gateway 与 API
+- `docs/development-ownership.md`：前端、后端、算法的模块归属与协作规则
+- `docs/contracts-v1.md`：P1 跨模块契约基线
+- `docs/p1-development-plan.md`：三人任务、依赖、里程碑和集成矩阵

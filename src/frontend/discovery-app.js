@@ -1,11 +1,11 @@
-import { SOURCE_CONNECTORS } from "./discovery-catalog.js";
+import { SOURCE_CONNECTORS } from "../core/discovery/catalog.js";
 import {
   candidateToSkillGenome,
   connectorById,
   convertMaterialToSkill,
-  federatedSearch,
   parseSearchQuery,
-} from "./discovery-engine.js";
+  searchLocalIndex,
+} from "../core/discovery/engine.js";
 import {
   apiHealth,
   benchmarkSkill,
@@ -36,6 +36,17 @@ const state = {
   notice: null,
   gateway: "checking",
 };
+
+function localFallbackSearch(query, sourceIds) {
+  const includesBuiltin = sourceIds.includes("builtin");
+  const results = includesBuiltin ? searchLocalIndex(query) : [];
+  const status = sourceIds.map((sourceId) =>
+    sourceId === "builtin"
+      ? { sourceId, state: "ok", count: results.length }
+      : { sourceId, state: "unavailable", count: 0, message: "服务端不可用" },
+  );
+  return { results, status };
+}
 
 function loadLibrary() {
   try {
@@ -313,7 +324,7 @@ async function runSearch() {
     if (state.gateway !== "online") throw new Error("Gateway offline");
     ({ results, status } = await searchDiscovery(state.query, [...state.sourceIds]));
   } catch {
-    ({ results, status } = await federatedSearch(state.query, { sourceIds: [...state.sourceIds] }));
+    ({ results, status } = localFallbackSearch(state.query, [...state.sourceIds]));
   }
   state.results = results;
   state.providerStatus = status;
@@ -446,7 +457,7 @@ async function initialize() {
     state.providerStatus = status;
   } catch {
     state.gateway = "offline";
-    const { results, status } = await federatedSearch(state.query, { sourceIds: ["builtin"] });
+    const { results, status } = localFallbackSearch(state.query, ["builtin"]);
     state.results = results;
     state.providerStatus = status;
   }

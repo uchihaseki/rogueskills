@@ -9,7 +9,7 @@ import {
   getCurrentLayer,
   resolveCurrentNode,
   selectNode,
-} from "../src/engine.js";
+} from "../../src/core/evolution/engine.js";
 
 test("相同 Seed 生成完全相同的地图", () => {
   assert.deepEqual(generateMap("DAILY-0714"), generateMap("DAILY-0714"));

@@ -4,7 +4,7 @@ import {
   NODE_TYPES,
   RUN_MODES,
   STAT_LABELS,
-} from "./catalog.js";
+} from "../core/evolution/catalog.js";
 import {
   MAX_STABILITY,
   SAVE_VERSION,
@@ -21,9 +21,9 @@ import {
   resolveCurrentNode,
   selectNode,
   skipMutation,
-} from "./engine.js";
+} from "../core/evolution/engine.js";
 import { listInitialSkills } from "./api-client.js";
-import { capabilityProfileFromGenome } from "./skill-genome.js";
+import { capabilityProfileFromGenome } from "../core/genome/skill-genome.js";
 
 const STORAGE_KEY = "rogueskills.prototype.run.v1";
 const root = document.querySelector("#app");

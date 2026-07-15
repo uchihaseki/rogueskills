@@ -26,8 +26,8 @@ Scenario Benchmark Cases
 
 ### Skill Genome Schema
 
-- JSON Schema：`schemas/skill-genome.schema.json`
-- Runtime Validator：`src/skill-genome.js`
+- JSON Schema：`src/contracts/skill-genome.schema.json`
+- Runtime Validator：`src/core/genome/skill-genome.js`
 - 当前版本：`1.0.0`
 - 包含 Prompt、Workflow、Input、Output、Constraints、Tools、Capabilities、Test Cases、Evaluation、Provenance 和 Risk
 
@@ -146,3 +146,9 @@ P0 Benchmark 是实际执行、逐用例、可解释、可落库的确定性评�
 - Validation / Hidden Test 数据集管理
 - Mutation 生成真实 Genome Diff
 - Candidate、A/B Test 和 Canary 发布
+
+P1 的模块归属、契约和三人开发顺序分别见：
+
+- `docs/development-ownership.md`
+- `docs/contracts-v1.md`
+- `docs/p1-development-plan.md`

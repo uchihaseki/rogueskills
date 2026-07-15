@@ -26,9 +26,9 @@
 | P0 | Run 状态机 | 定义节点选择、评估、奖励、死亡与通关 | 本文已包含 |
 | P0 | 核心数据模型 | 定义 Run、Map、Monster、Mutation、Evolution | 代码配置 + 本文 |
 | P0 | 评估协议 | 定义能力、难度、成本、伤害与通过条件 | 本文已包含 |
-| P0 | 内容配置规范 | 让怪物、Mutation 和进化配方数据驱动 | `src/catalog.js` |
+| P0 | 内容配置规范 | 让怪物、Mutation 和进化配方数据驱动 | `src/core/evolution/catalog.js` |
 | P0 | 原型交互说明 | 定义单局主界面和操作反馈 | 本文已包含 |
-| P0 | 测试与可复现规范 | 固定 Seed、引擎单测、Replay | `tests/engine.test.js` |
+| P0 | 测试与可复现规范 | 固定 Seed、引擎单测、Replay | `tests/core/engine.test.js` |
 | P0 | Benchmark Runner | 确定性场景用例与 Initial Library 准入 | 已实现 |
 | P0 | Skill Genome Schema | Prompt、Workflow、Capabilities 与 Provenance | Schema 1.0 已实现 |
 | P0 | 持久化与版本谱系 | Skill、版本、来源快照和评估记录 | SQLite 已实现 |
@@ -78,18 +78,31 @@
 ## 4. 模块划分
 
 ```text
-index.html
-└── src/app.js                 UI 与交互编排
-    ├── src/engine.js          Run 状态机和领域逻辑
-    ├── src/catalog.js         怪物、Mutation、进化配方和职业配置
-    └── src/random.js          Seed 随机数与通用纯函数
+src/
+├── frontend/                  UI、交互和 API Client
+│   ├── app.js
+│   ├── discovery-app.js
+│   └── api-client.js
+├── backend/                   API、Repository 和服务端编排
+│   ├── api/router.mjs
+│   ├── connectors/discovery-gateway.mjs
+│   └── repository/
+├── core/                      可复现的纯领域与算法逻辑
+│   ├── benchmark/runner.js
+│   ├── discovery/
+│   ├── evolution/
+│   ├── genome/
+│   └── shared/
+└── contracts/                 三方共享 Schema
 ```
 
-### Catalog
+详细归属和依赖方向见 `docs/development-ownership.md`。
+
+### Core Catalog
 
 只保存静态内容配置，不包含状态变化逻辑。未来可以替换为后端内容服务。
 
-### Engine
+### Core Engine
 
 使用纯函数接收 Run State 并返回新的 Run State，负责：
 
@@ -102,7 +115,7 @@ index.html
 - 武器进化检测
 - Act 切换、死亡和通关
 
-### App
+### Frontend App
 
 负责：
 
@@ -112,6 +125,14 @@ index.html
 - 展示指标、构筑、进化配方和 Replay
 
 UI 不直接计算评估结果或修改业务规则。
+
+### Backend
+
+负责 API、Repository、生命周期、安全边界和外部系统编排。后端可以调用 Core，但不能在 API 或 Repository 中复制评分和 Mutation 规则。
+
+### Contracts
+
+保存三方共享的版本化协议。破坏性变更必须升级版本，并同步 Fixture、提供方测试和消费方测试。
 
 ## 5. Run 状态机
 

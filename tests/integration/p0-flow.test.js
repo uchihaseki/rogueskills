@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createRun, evaluateEncounter, getCurrentLayer, selectNode } from "../src/engine.js";
-import { createApiRouter } from "../src/server/api-router.mjs";
-import { SkillRepository } from "../src/server/skill-repository.mjs";
+import { createRun, evaluateEncounter, getCurrentLayer, selectNode } from "../../src/core/evolution/engine.js";
+import { createApiRouter } from "../../src/backend/api/router.mjs";
+import { SkillRepository } from "../../src/backend/repository/skill-repository.mjs";
 
 test("P0 闭环：SOP → Repository → Benchmark → Initial Library → Evolution Run", async () => {
   const repository = new SkillRepository(":memory:");

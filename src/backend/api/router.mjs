@@ -1,10 +1,7 @@
-import { runAdmissionBenchmark, runScenarioBenchmark } from "../benchmark-runner.js";
-import {
-  convertMaterialToSkill,
-  federatedSearch,
-  ingestCandidate,
-} from "../discovery-engine.js";
-import { validateSkillGenome } from "../skill-genome.js";
+import { runAdmissionBenchmark, runScenarioBenchmark } from "../../core/benchmark/runner.js";
+import { convertMaterialToSkill } from "../../core/discovery/engine.js";
+import { validateSkillGenome } from "../../core/genome/skill-genome.js";
+import { federatedSearch, ingestCandidate } from "../connectors/discovery-gateway.mjs";
 
 function json(status, body, headers = {}) {
   return { status, body, headers: { "Content-Type": "application/json; charset=utf-8", ...headers } };

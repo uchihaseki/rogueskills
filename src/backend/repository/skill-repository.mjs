@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import { assertSkillGenome, validateSkillGenome } from "../skill-genome.js";
+import { assertSkillGenome, validateSkillGenome } from "../../core/genome/skill-genome.js";
 
 function now() {
   return new Date().toISOString();

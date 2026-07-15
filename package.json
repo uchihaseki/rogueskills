@@ -8,6 +8,10 @@
   },
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "test:frontend": "node --test tests/frontend/*.test.js",
+    "test:backend": "node --test tests/backend/*.test.js",
+    "test:core": "node --test tests/core/*.test.js",
+    "test:integration": "node --test tests/integration/*.test.js"
   }
 }

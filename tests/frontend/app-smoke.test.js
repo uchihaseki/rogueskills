@@ -29,7 +29,7 @@ test("界面可以从设置页进入首场遭遇并显示 Mutation Draft", async
     },
   };
 
-  await import("../src/app.js?smoke-test");
+  await import("../../src/frontend/app.js?smoke-test");
   assert.match(root.innerHTML, /生成 Evolution Run/);
 
   const click = (dataset) =>
