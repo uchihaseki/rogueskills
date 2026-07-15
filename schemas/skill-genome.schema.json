@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rogueskills.local/schemas/skill-genome.schema.json",
+  "title": "RogueSkills Skill Genome",
+  "description": "A versioned, evaluable and provenance-aware representation of an agent Skill.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "description",
+    "status",
+    "metadata",
+    "prompt",
+    "workflow",
+    "inputs",
+    "outputs",
+    "constraints",
+    "tools",
+    "capabilities",
+    "testCases",
+    "evaluation",
+    "provenance",
+    "risk"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "status": {
+      "enum": ["quarantine", "initial", "evolving", "candidate", "production", "retired"]
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["category", "license", "tags", "completeness"],
+      "properties": {
+        "category": { "type": "string" },
+        "license": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "completeness": { "type": "number", "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": true
+    },
+    "prompt": {
+      "type": "object",
+      "required": ["role", "objective", "instruction"],
+      "properties": {
+        "role": { "type": "string" },
+        "objective": { "type": "string" },
+        "instruction": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "required": ["steps"],
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "order", "instruction"],
+            "properties": {
+              "id": { "type": "string" },
+              "order": { "type": "integer", "minimum": 1 },
+              "instruction": { "type": "string", "minLength": 1 },
+              "tool": { "type": ["string", "null"] },
+              "inputRefs": { "type": "array", "items": { "type": "string" } },
+              "output": { "type": ["string", "null"] }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "inputs": { "type": "array", "items": { "type": "string" } },
+    "outputs": { "type": "array", "items": { "type": "string" } },
+    "constraints": { "type": "array", "items": { "type": "string" } },
+    "tools": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "level", "tags", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "level": { "type": "number", "minimum": 0, "maximum": 100 },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "examples": { "type": "array", "items": { "type": "string" } },
+    "testCases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "purpose", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "purpose": { "type": "string" },
+          "status": { "enum": ["draft", "ready", "passed", "failed"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "required": ["status", "requiredGates"],
+      "properties": {
+        "status": { "enum": ["not_run", "running", "passed", "failed"] },
+        "requiredGates": { "type": "array", "items": { "type": "string" } },
+        "lastRunId": { "type": ["string", "null"] },
+        "score": { "type": ["number", "null"], "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": true
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["platform", "author", "fingerprint", "capturedAt"],
+      "properties": {
+        "platform": { "type": "string" },
+        "url": { "type": ["string", "null"] },
+        "author": { "type": "string" },
+        "revision": { "type": ["string", "null"] },
+        "artifactPaths": { "type": "array", "items": { "type": "string" } },
+        "fingerprint": { "type": "string" },
+        "capturedAt": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "risk": {
+      "type": "object",
+      "required": ["level", "reasons", "executableContent"],
+      "properties": {
+        "level": { "enum": ["low", "medium", "high"] },
+        "reasons": { "type": "array", "items": { "type": "string" } },
+        "executableContent": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "discovery": { "type": "object" },
+    "lineage": { "type": "object" }
+  },
+  "additionalProperties": false
+}
