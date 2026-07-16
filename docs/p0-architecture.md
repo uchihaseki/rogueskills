@@ -1,5 +1,7 @@
 # RogueSkills P0 Architecture（Implemented v0.1）
 
+> 历史基线：本文记录冻结的 Node P0。当前 Python/FastAPI 架构、目录和运行方式见 `python-architecture.md` 与根目录 `README.md`。
+
 ## 1. P0 交付目标
 
 P0 将原先两个独立的浏览器原型连接成一条可持久化闭环：

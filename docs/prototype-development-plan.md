@@ -1,5 +1,7 @@
 # RogueSkills 原型开发设计与文档清单
 
+> 历史基线：本文中的 `src/core` 和 Node 目录已迁入 `legacy/`。当前实施计划以 `python-architecture.md` 为准。
+
 ## 1. 原型目标
 
 第一版要验证的不是完整 Skill 生态，而是一个最小、可玩的 Skill Evolution Run：

@@ -1,5 +1,7 @@
 # RogueSkills P1 三人开发计划
 
+> v0.2 更新：Python/FastAPI 迁移、权威 Run 状态机、生命周期版本校验和 Agent Port 已完成。本文后续工作包仍有效，但实现路径以 `python-architecture.md` 为准。
+
 ## 1. P1 共同目标
 
 P1 不以增加更多页面、职业或连接器为首要目标。三个人共同交付一个 Browser Skill 的真实进化纵向闭环：

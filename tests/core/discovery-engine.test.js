@@ -8,7 +8,7 @@ import {
   parseSearchQuery,
   scanContent,
   searchLocalIndex,
-} from "../../src/core/discovery/engine.js";
+} from "../../legacy/src/core/discovery/engine.js";
 
 test("搜索语法可以分离自然语言与过滤器", () => {
   const parsed = parseSearchQuery("browser extraction source:github type:skill license:mit");

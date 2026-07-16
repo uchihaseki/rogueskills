@@ -1,5 +1,7 @@
 # RogueSkills Skill Discovery & Genesis 设计（Draft v0.1）
 
+> 历史设计：Discovery 权威实现现已迁入 `backend/rogueskills/domain/discovery.py` 与 Python Adapter，旧路径仅保留在 `legacy/` 用于行为对拍。
+
 ## 1. 目标
 
 Skill Discovery 是 RogueSkills 的初始能力来源系统，负责：

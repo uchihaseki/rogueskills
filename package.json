@@ -1,17 +1,17 @@
 {
-  "name": "rogueskills-prototype",
-  "version": "0.1.0",
+  "name": "rogueskills",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=22.5.0"
   },
   "scripts": {
-    "start": "node server.mjs",
-    "test": "node --test",
+    "start": "PYTHONPATH=backend .venv/bin/python -m rogueskills.main",
+    "test": "node --test && PYTHONPATH=backend .venv/bin/python -m unittest tests.python.test_domain",
+    "test:python": "PYTHONPATH=backend .venv/bin/python -m pytest tests/python",
+    "test:python-domain": "PYTHONPATH=backend .venv/bin/python -m unittest tests.python.test_domain -v",
     "test:frontend": "node --test tests/frontend/*.test.js",
-    "test:backend": "node --test tests/backend/*.test.js",
-    "test:core": "node --test tests/core/*.test.js",
-    "test:integration": "node --test tests/integration/*.test.js"
+    "test:legacy": "node --test tests/backend/*.test.js tests/core/*.test.js tests/integration/*.test.js"
   }
 }

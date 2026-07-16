@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { SOURCE_CONNECTORS } from "../../src/core/discovery/catalog.js";
+import { SOURCE_CONNECTORS } from "../../legacy/src/core/discovery/catalog.js";
 import {
   federatedSearch,
   ingestCandidate,
   searchGitHub,
-} from "../../src/backend/connectors/discovery-gateway.mjs";
+} from "../../legacy/src/backend/connectors/discovery-gateway.mjs";
 
 test("GitHub 连接器结果会归一化并参与统一排序", async () => {
   const fetchImpl = async () =>

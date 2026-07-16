@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createApiRouter } from "../../src/backend/api/router.mjs";
-import { SkillRepository } from "../../src/backend/repository/skill-repository.mjs";
-import { INITIAL_BROWSER_SKILL } from "../../src/core/genome/seed-skills.js";
+import { createApiRouter } from "../../legacy/src/backend/api/router.mjs";
+import { SkillRepository } from "../../legacy/src/backend/repository/skill-repository.mjs";
+import { INITIAL_BROWSER_SKILL } from "../../legacy/src/core/genome/seed-skills.js";
 
 test("Search Gateway 提供健康检查和 Initial Library", async () => {
   const repository = new SkillRepository(":memory:");

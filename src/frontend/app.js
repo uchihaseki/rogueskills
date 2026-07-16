@@ -1,43 +1,38 @@
 import {
-  ARCHETYPES,
-  EVOLUTIONS,
-  NODE_TYPES,
-  RUN_MODES,
-  STAT_LABELS,
-} from "../core/evolution/catalog.js";
-import {
-  MAX_STABILITY,
-  SAVE_VERSION,
-  calculateObjectiveScore,
-  chooseMutation,
-  createRun,
-  getCurrentLayer,
-  getCurrentRegion,
-  getEvolutionById,
-  getEvolutionProgress,
-  getMonsterById,
-  getMutationById,
-  getSelectedNode,
-  resolveCurrentNode,
-  selectNode,
-  skipMutation,
-} from "../core/evolution/engine.js";
-import { listInitialSkills } from "./api-client.js";
-import { capabilityProfileFromGenome } from "../core/genome/skill-genome.js";
+  chooseEvolutionMutation,
+  createEvolutionRun,
+  getEvolutionCatalog,
+  getEvolutionRun,
+  listInitialSkills,
+  resolveEvolutionNode,
+  selectEvolutionNode,
+  skipEvolutionMutation,
+} from "./api-client.js";
 
 const STORAGE_KEY = "rogueskills.prototype.run.v1";
+const MAX_STABILITY = 12;
+const SAVE_VERSION = 2;
 const root = document.querySelector("#app");
 
 let savedRun = loadRun();
 let run = null;
+let runRevision = null;
 let initialSkills = [];
 let initialLibraryState = "loading";
 let selectedInitialSkillId = null;
+let actionPending = false;
+let ARCHETYPES = {};
+let EVOLUTIONS = [];
+let NODE_TYPES = {};
+let RUN_MODES = {};
+let STAT_LABELS = {};
+let MONSTERS = {};
+let MUTATIONS = [];
 
 function loadRun() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return parsed?.saveVersion === SAVE_VERSION ? parsed : null;
+    return parsed?.saveVersion === SAVE_VERSION && parsed?.id ? parsed : null;
   } catch {
     return null;
   }
@@ -45,8 +40,90 @@ function loadRun() {
 
 function persistRun() {
   if (run) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(run));
-    savedRun = run;
+    savedRun = {
+      saveVersion: SAVE_VERSION,
+      id: run.id,
+      revision: runRevision,
+      actIndex: run.actIndex,
+      seed: run.seed,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedRun));
+  }
+}
+
+function getCurrentRegion(state) {
+  return state.map[state.actIndex] ?? null;
+}
+
+function getCurrentLayer(state) {
+  return getCurrentRegion(state)?.layers[state.layerIndex] ?? [];
+}
+
+function getSelectedNode(state) {
+  if (!state.selectedNodeId) return null;
+  return getCurrentRegion(state)?.layers.flat().find((node) => node.id === state.selectedNodeId) ?? null;
+}
+
+function getMutationById(id) {
+  return MUTATIONS.find((mutation) => mutation.id === id) ?? null;
+}
+
+function getEvolutionById(id) {
+  return EVOLUTIONS.find((evolution) => evolution.id === id) ?? null;
+}
+
+function getMonsterById(id) {
+  return MONSTERS[id] ?? null;
+}
+
+function calculateObjectiveScore(state) {
+  const weights = RUN_MODES[state.modeId]?.weights ?? {};
+  const value = Object.entries(weights).reduce(
+    (total, [stat, weight]) => total + (state.stats[stat] ?? 0) * weight,
+    0,
+  );
+  return Math.round(value * 10) / 10;
+}
+
+function getEvolutionProgress(state) {
+  const counts = {};
+  state.mutationIds.forEach((mutationId) => {
+    getMutationById(mutationId)?.tags.forEach((tag) => {
+      counts[tag] = (counts[tag] ?? 0) + 1;
+    });
+  });
+  return EVOLUTIONS.map((evolution) => {
+    const requirements = Object.entries(evolution.tagRequirements).map(([tag, required]) => ({
+      tag,
+      required,
+      current: Math.min(counts[tag] ?? 0, required),
+    }));
+    return {
+      ...evolution,
+      unlocked: state.evolutionIds.includes(evolution.id),
+      requirements,
+      progress: requirements.reduce((total, item) => total + item.current, 0),
+      total: requirements.reduce((total, item) => total + item.required, 0),
+    };
+  });
+}
+
+function acceptRunRecord(record) {
+  run = record.run;
+  runRevision = record.revision;
+  persistRun();
+  render();
+}
+
+async function transition(operation) {
+  if (actionPending || !run || !runRevision) return;
+  actionPending = true;
+  try {
+    acceptRunRecord(await operation());
+  } catch (error) {
+    window.alert(`${error.code ?? "RUN_ERROR"}: ${error.message}`);
+  } finally {
+    actionPending = false;
   }
 }
 
@@ -84,7 +161,7 @@ function renderSetup() {
   const displayRole = genome?.metadata?.category ?? archetype.role;
   const displayDescription = genome?.description ?? archetype.description;
   const displayWeapons = genome?.tools?.length ? genome.tools : archetype.initialWeapons;
-  const displayStats = genome ? capabilityProfileFromGenome(genome) : archetype.stats;
+  const displayStats = selectedSkill?.capabilityProfile ?? archetype.stats;
   document.title = "RogueSkills · 新建 Evolution Run";
 
   root.innerHTML = `
@@ -214,7 +291,7 @@ function renderSetup() {
       </section>
 
       <footer class="landing-footer">
-        Skill Genome 1.0 · Deterministic Benchmark Runner · SQLite Lineage Repository
+        Skill Genome 1.0 · Python Benchmark Engine · Versioned Lineage Repository
       </footer>
     </main>
   `;
@@ -702,7 +779,7 @@ function render() {
   else renderSetup();
 }
 
-root.addEventListener("click", (event) => {
+root.addEventListener("click", async (event) => {
   const trigger = event.target.closest("[data-action]");
   if (!trigger) return;
 
@@ -718,9 +795,15 @@ root.addEventListener("click", (event) => {
     const seed = document.querySelector("#run-seed")?.value;
     const modeId = document.querySelector('input[name="mode"]:checked')?.value;
     const selectedSkill = initialSkills.find((skill) => skill.id === selectedInitialSkillId) ?? initialSkills[0];
-    run = createRun({ seed, modeId, skillGenome: selectedSkill?.genome ?? null });
-    persistRun();
-    render();
+    if (!selectedSkill || actionPending) return;
+    actionPending = true;
+    try {
+      acceptRunRecord(await createEvolutionRun({ seed, modeId, skillId: selectedSkill.id }));
+    } catch (error) {
+      window.alert(`${error.code ?? "RUN_CREATE_FAILED"}: ${error.message}`);
+    } finally {
+      actionPending = false;
+    }
     return;
   }
 
@@ -731,58 +814,81 @@ root.addEventListener("click", (event) => {
   }
 
   if (action === "continue-run" && savedRun) {
-    run = savedRun;
-    render();
+    try {
+      acceptRunRecord(await getEvolutionRun(savedRun.id));
+    } catch (error) {
+      localStorage.removeItem(STORAGE_KEY);
+      savedRun = null;
+      window.alert(`${error.code ?? "RUN_LOAD_FAILED"}: ${error.message}`);
+      render();
+    }
     return;
   }
 
   if (action === "return-setup") {
     run = null;
+    runRevision = null;
     render();
     return;
   }
 
   if (action === "retry-seed") {
-    run = createRun({
-      seed: run.seed,
-      archetypeId: run.archetypeId,
-      modeId: run.modeId,
-      skillGenome: run.baseSkillGenome,
-    });
-    persistRun();
-    render();
+    if (actionPending) return;
+    actionPending = true;
+    try {
+      acceptRunRecord(
+        await createEvolutionRun({ seed: run.seed, modeId: run.modeId, skillId: run.baseSkillId }),
+      );
+    } catch (error) {
+      window.alert(`${error.code ?? "RUN_CREATE_FAILED"}: ${error.message}`);
+    } finally {
+      actionPending = false;
+    }
     return;
   }
 
   if (action === "select-node") {
-    run = selectNode(run, trigger.dataset.nodeId);
+    await transition(() => selectEvolutionNode(run.id, trigger.dataset.nodeId, runRevision));
+    return;
   }
 
   if (action === "resolve-node") {
-    run = resolveCurrentNode(run);
+    await transition(() => resolveEvolutionNode(run.id, runRevision));
+    return;
   }
 
   if (action === "choose-mutation") {
-    run = chooseMutation(run, trigger.dataset.mutationId);
+    await transition(() =>
+      chooseEvolutionMutation(run.id, trigger.dataset.mutationId, runRevision),
+    );
+    return;
   }
 
   if (action === "skip-mutation") {
-    run = skipMutation(run);
+    await transition(() => skipEvolutionMutation(run.id, runRevision));
+    return;
   }
-
-  persistRun();
-  render();
 });
 
-render();
-listInitialSkills()
-  .then(({ skills }) => {
+async function initialize() {
+  try {
+    const [catalog, library] = await Promise.all([getEvolutionCatalog(), listInitialSkills()]);
+    ARCHETYPES = catalog.archetypes;
+    EVOLUTIONS = catalog.evolutions;
+    NODE_TYPES = catalog.nodeTypes;
+    RUN_MODES = catalog.runModes;
+    STAT_LABELS = catalog.statLabels;
+    MONSTERS = catalog.monsters;
+    MUTATIONS = catalog.mutations;
+    const { skills } = library;
     initialSkills = skills;
     initialLibraryState = "ready";
     if (!selectedInitialSkillId && skills.length) selectedInitialSkillId = skills[0].id;
-    if (!run) render();
-  })
-  .catch(() => {
+    render();
+  } catch (error) {
     initialLibraryState = "offline";
-    if (!run) render();
-  });
+    root.innerHTML = `<main class="setup-shell"><section class="hero"><p class="eyebrow">PYTHON GATEWAY OFFLINE</p><h1>后端暂时不可用</h1><p class="hero-copy">请启动 Python FastAPI 服务后刷新页面。${escapeHtml(error.message)}</p></section></main>`;
+  }
+}
+
+initialize();

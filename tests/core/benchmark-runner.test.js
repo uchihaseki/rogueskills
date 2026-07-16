@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { runAdmissionBenchmark, runScenarioBenchmark } from "../../src/core/benchmark/runner.js";
-import { convertMaterialToSkill } from "../../src/core/discovery/engine.js";
-import { INITIAL_BROWSER_SKILL } from "../../src/core/genome/seed-skills.js";
+import { runAdmissionBenchmark, runScenarioBenchmark } from "../../legacy/src/core/benchmark/runner.js";
+import { convertMaterialToSkill } from "../../legacy/src/core/discovery/engine.js";
+import { INITIAL_BROWSER_SKILL } from "../../legacy/src/core/genome/seed-skills.js";
 
 test("Initial Browser Skill 通过真实准入 Benchmark", () => {
   const result = runAdmissionBenchmark(INITIAL_BROWSER_SKILL);

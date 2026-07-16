@@ -1,16 +1,10 @@
-import { SOURCE_CONNECTORS } from "../core/discovery/catalog.js";
-import {
-  candidateToSkillGenome,
-  connectorById,
-  convertMaterialToSkill,
-  parseSearchQuery,
-  searchLocalIndex,
-} from "../core/discovery/engine.js";
 import {
   apiHealth,
   benchmarkSkill,
+  convertMaterial,
   deleteSkill,
   importDiscoveryCandidate,
+  listDiscoveryConnectors,
   listSkills,
   promoteSkill,
   searchDiscovery,
@@ -19,6 +13,7 @@ import {
 
 const STORAGE_KEY = "rogueskills.discovery.library.v1";
 const root = document.querySelector("#discovery-app");
+let SOURCE_CONNECTORS = [];
 
 const state = {
   view: "search",
@@ -28,6 +23,9 @@ const state = {
   results: [],
   providerStatus: [],
   searching: false,
+  normalizing: false,
+  normalizer: null,
+  normalization: null,
   stagingId: null,
   library: loadLibrary(),
   preview: null,
@@ -37,15 +35,14 @@ const state = {
   gateway: "checking",
 };
 
-function localFallbackSearch(query, sourceIds) {
-  const includesBuiltin = sourceIds.includes("builtin");
-  const results = includesBuiltin ? searchLocalIndex(query) : [];
-  const status = sourceIds.map((sourceId) =>
-    sourceId === "builtin"
-      ? { sourceId, state: "ok", count: results.length }
-      : { sourceId, state: "unavailable", count: 0, message: "服务端不可用" },
+function connectorById(id) {
+  return SOURCE_CONNECTORS.find((connector) => connector.id === id) ?? null;
+}
+
+function requestedSourceFilters(query) {
+  return [...query.matchAll(/\bsource:(?:"([^"]+)"|(\S+))/gi)].map((match) =>
+    (match[1] ?? match[2]).toLowerCase(),
   );
-  return { results, status };
 }
 
 function loadLibrary() {
@@ -104,7 +101,7 @@ function setNotice(message, tone = "success") {
 function renderHeader() {
   return `
     <header class="discovery-nav">
-      <a class="brand" href="./index.html" aria-label="返回 RogueSkills">
+      <a class="brand" href="/" aria-label="返回 RogueSkills">
         <span class="brand-mark">R</span>
         <span><strong>RogueSkills</strong><small>DISCOVERY OBSERVATORY</small></span>
       </a>
@@ -115,7 +112,7 @@ function renderHeader() {
           Skill Repository <span>${state.library.length}</span>
         </button>
       </nav>
-      <a class="back-to-run" href="./index.html">${state.gateway === "online" ? "GATEWAY ONLINE" : "LOCAL FALLBACK"} · Evolution Run <b>→</b></a>
+      <a class="back-to-run" href="/">${state.gateway === "online" ? "GATEWAY ONLINE" : "GATEWAY OFFLINE"} · Evolution Run <b>→</b></a>
     </header>`;
 }
 
@@ -243,10 +240,12 @@ function renderGenomePreview(genome) {
 }
 
 function renderConvertView() {
+  const normalizerReady = state.normalizer?.configured === true;
+  const modelLabel = state.normalizer?.model || "未配置";
   return `
     <section class="subpage-heading">
-      <div><p>SOP → SKILL GENOME</p><h1>把领域知识变成可评估的能力候选</h1><span>材料完全在本地解析；示例命令不会被执行。</span></div>
-      <div class="pipeline-mini"><span>材料</span><i>→</i><span>结构抽取</span><i>→</i><span>风险扫描</span><i>→</i><span>隔离评测</span></div>
+      <div><p>SOP → SKILL GENOME</p><h1>把领域知识变成可评估的能力候选</h1><span>模型负责语义归一化，Python 负责结构校验、安全门禁和 Genome 构建。</span></div>
+      <div class="pipeline-mini"><span>原始材料</span><i>→</i><span>LLM 归一化</span><i>→</i><span>Contract 校验</span><i>→</i><span>安全扫描</span></div>
     </section>
     <section class="converter-grid">
       <article class="material-editor">
@@ -255,8 +254,8 @@ function renderConvertView() {
         <div class="field-row"><div><label class="field-label" for="material-source">来源说明</label><input class="text-field" id="material-source" placeholder="内部知识库 / URL / 团队" /></div>
           <div><label class="field-label" for="material-license">许可证</label><select class="text-field" id="material-license"><option value="unknown">未知</option><option value="internal">内部授权</option><option value="MIT">MIT</option><option value="Apache-2.0">Apache-2.0</option><option value="CC-BY-4.0">CC-BY-4.0</option></select></div></div>
         <label class="field-label" for="material-content">Markdown / 纯文本</label><textarea id="material-content" placeholder="# 目标\n\n描述这个流程解决的问题。\n\n## 步骤\n1. …\n2. …\n\n## 约束\n- 必须…\n- 不得…">${escapeHtml(state.uploadedText)}</textarea>
-        <div class="editor-actions"><label class="file-button"><input id="material-file" type="file" accept=".md,.txt,text/markdown,text/plain" />上传 .md / .txt</label><span>${state.uploadedText.length.toLocaleString()} chars · 本地处理</span><button class="convert-button" data-action="convert-material">转换为 Skill Genome <b>→</b></button></div>
-        <div class="conversion-boundary"><span>安全边界</span><p>当前转换器只识别结构并生成候选。它不会运行材料中的脚本，也不会把候选直接放进生产 Skill Hub。</p></div>
+        <div class="editor-actions"><label class="file-button"><input id="material-file" type="file" accept=".md,.txt,text/markdown,text/plain" />上传 .md / .txt</label><span>${state.uploadedText.length.toLocaleString()} chars · ${escapeHtml(modelLabel)}</span><button class="convert-button" data-action="convert-material" ${!normalizerReady || state.normalizing ? "disabled" : ""}>${state.normalizing ? "模型归一化中…" : "发送给模型并转换"} <b>→</b></button></div>
+        <div class="conversion-boundary ${normalizerReady ? "" : "not-configured"}"><span>${normalizerReady ? "模型边界" : "需要配置"}</span><p>${normalizerReady ? `点击转换会把原始材料发送给后端配置的模型「${escapeHtml(modelLabel)}」。模型没有工具权限；返回结果还会经过 Pydantic Contract、静态安全和许可证检查。` : "后端尚未配置 LLM Normalizer，请设置 ROGUESKILLS_LLM_BASE_URL 和 ROGUESKILLS_LLM_MODEL 后重启服务。"}</p></div>
       </article>
       <article class="genome-panel">${renderGenomePreview(state.preview)}</article>
     </section>`;
@@ -284,7 +283,7 @@ function renderLibraryItem(genome) {
       <div class="library-gates">${genome.evaluation.requiredGates.map((gate) => `<span><i></i>${escapeHtml(gate)}</span>`).join("")}</div>
       <div class="library-actions"><span>状态：<b>${statusLabel}</b></span><div>
         ${status === "quarantine" && state.gateway === "online" ? `<button class="benchmark-button" data-action="benchmark-genome" data-genome-id="${genome.id}">运行准入 Benchmark</button>` : ""}
-        ${status === "quarantine" && admission && state.gateway === "online" ? `<button class="promote-button" data-action="promote-genome" data-genome-id="${genome.id}" data-evaluation-id="${admission.id}">晋升 Initial Library</button>` : ""}
+        ${status === "quarantine" && admission && state.gateway === "online" ? `<button class="promote-button" data-action="promote-genome" data-genome-id="${genome.id}" data-evaluation-id="${admission.id}" data-skill-version-id="${repository.currentVersionId}">晋升 Initial Library</button>` : ""}
         <button data-action="export-genome" data-genome-id="${genome.id}">导出 JSON</button>
         ${status === "quarantine" ? `<button class="remove" data-action="remove-genome" data-genome-id="${genome.id}">移除</button>` : ""}
       </div></div>
@@ -304,12 +303,12 @@ function renderLibraryView() {
 function render() {
   document.title = `RogueSkills · ${state.view === "search" ? "Skill Discovery" : state.view === "convert" ? "SOP Converter" : "Skill Repository"}`;
   const content = state.view === "search" ? renderSearchView() : state.view === "convert" ? renderConvertView() : renderLibraryView();
-  root.innerHTML = `<main class="discovery-shell">${renderHeader()}${renderNotice()}${content}<footer class="discovery-footer"><span>${state.gateway === "online" ? "SQLITE REPOSITORY · SEARCH GATEWAY ONLINE" : "LOCAL FALLBACK · GATEWAY OFFLINE"}</span><a href="./docs/skill-discovery-design.md">Discovery protocol v0.1</a></footer></main>`;
+  root.innerHTML = `<main class="discovery-shell">${renderHeader()}${renderNotice()}${content}<footer class="discovery-footer"><span>${state.gateway === "online" ? "PYTHON REPOSITORY · SEARCH GATEWAY ONLINE" : "PYTHON GATEWAY OFFLINE"}</span><a href="./api/docs">API contract v0.2</a></footer></main>`;
 }
 
 async function runSearch() {
   state.query = document.querySelector("#discovery-query")?.value.trim() || state.query;
-  const requestedSources = parseSearchQuery(state.query).filters.source.filter((sourceId) =>
+  const requestedSources = requestedSourceFilters(state.query).filter((sourceId) =>
     SOURCE_CONNECTORS.some(
       (connector) => connector.id === sourceId && ["live", "beta"].includes(connector.status),
     ),
@@ -318,18 +317,20 @@ async function runSearch() {
   state.searching = true;
   state.notice = null;
   render();
-  let results;
-  let status;
   try {
-    if (state.gateway !== "online") throw new Error("Gateway offline");
-    ({ results, status } = await searchDiscovery(state.query, [...state.sourceIds]));
-  } catch {
-    ({ results, status } = localFallbackSearch(state.query, [...state.sourceIds]));
+    if (state.gateway !== "online") throw new Error("Python Gateway offline");
+    const { results, status } = await searchDiscovery(state.query, [...state.sourceIds]);
+    state.results = results;
+    state.providerStatus = status;
+    if (status.every((item) => item.state !== "ok")) {
+      setNotice("所选远程来源当前不可用，请保留种子索引或稍后重试。", "error");
+    }
+  } catch (error) {
+    state.results = [];
+    state.providerStatus = [];
+    setNotice(`检索失败：${error.message}`, "error");
   }
-  state.results = results;
-  state.providerStatus = status;
   state.searching = false;
-  if (status.every((item) => item.state !== "ok")) setNotice("所选远程来源当前不可用，请保留种子索引或稍后重试。", "error");
   render();
 }
 
@@ -357,13 +358,9 @@ root.addEventListener("click", async (event) => {
     if (!candidate) return;
     state.stagingId = candidate.id; state.notice = null; render();
     try {
-      let genome;
-      if (state.gateway === "online") {
-        const { skill } = await importDiscoveryCandidate(candidate);
-        genome = recordToGenome(skill);
-      } else {
-        genome = await candidateToSkillGenome(candidate);
-      }
+      if (state.gateway !== "online") throw new Error("Python Gateway offline");
+      const { skill } = await importDiscoveryCandidate(candidate);
+      const genome = recordToGenome(skill);
       state.library = [genome, ...state.library.filter((item) => item.id !== genome.id)];
       saveLibrary();
       setNotice(`「${genome.name}」已保存到隔离候选库。`);
@@ -377,17 +374,33 @@ root.addEventListener("click", async (event) => {
     const license = document.querySelector("#material-license")?.value;
     const content = document.querySelector("#material-content")?.value.trim();
     if (!content) { setNotice("请先粘贴或上传 SOP 材料。", "error"); render(); return; }
+    if (!state.normalizer?.configured) { setNotice("后端尚未配置 LLM Normalizer。", "error"); render(); return; }
     state.uploadedName = title; state.uploadedText = content;
-    state.preview = convertMaterialToSkill({ title, content, license, source: { platform: sourceLabel || "Manual SOP", author: "Local User" } });
-    state.notice = null; render(); return;
+    state.normalizing = true;
+    state.notice = null;
+    render();
+    try {
+      const { genome, normalization } = await convertMaterial({
+        title,
+        content,
+        license,
+        source: { platform: sourceLabel || "Manual SOP", author: "Local User" },
+      });
+      state.preview = genome;
+      state.normalization = normalization;
+      setNotice(`模型「${normalization.model ?? normalization.provider}」已完成语义归一化。`, "success");
+    } catch (error) {
+      setNotice(`转换失败：${error.message}`, "error");
+    } finally {
+      state.normalizing = false;
+    }
+    render(); return;
   }
   if (action === "stage-preview" && state.preview) {
-    let genome = state.preview;
     try {
-      if (state.gateway === "online") {
-        const { skill } = await storeSkillGenome(state.preview, "manual");
-        genome = recordToGenome(skill);
-      }
+      if (state.gateway !== "online") throw new Error("Python Gateway offline");
+      const { skill } = await storeSkillGenome(state.preview, "manual");
+      const genome = recordToGenome(skill);
       state.library = [genome, ...state.library.filter((item) => item.id !== genome.id)];
       saveLibrary();
       setNotice(`「${genome.name}」已保存到 Skill Repository。`);
@@ -415,7 +428,11 @@ root.addEventListener("click", async (event) => {
   }
   if (action === "promote-genome") {
     try {
-      await promoteSkill(trigger.dataset.genomeId, trigger.dataset.evaluationId);
+      await promoteSkill(
+        trigger.dataset.genomeId,
+        trigger.dataset.evaluationId,
+        trigger.dataset.skillVersionId,
+      );
       await syncRepository();
       setNotice("Skill 已进入 Initial Skill Library，可以在 Evolution Run 中选择。", "success");
     } catch (error) {
@@ -426,7 +443,8 @@ root.addEventListener("click", async (event) => {
   }
   if (action === "remove-genome") {
     try {
-      if (state.gateway === "online") await deleteSkill(trigger.dataset.genomeId);
+      if (state.gateway !== "online") throw new Error("Python Gateway offline");
+      await deleteSkill(trigger.dataset.genomeId);
       state.library = state.library.filter((item) => item.id !== trigger.dataset.genomeId);
       saveLibrary();
     } catch (error) {
@@ -449,7 +467,9 @@ root.addEventListener("change", async (event) => {
 async function initialize() {
   render();
   try {
-    await apiHealth();
+    const [health, connectorResponse] = await Promise.all([apiHealth(), listDiscoveryConnectors()]);
+    SOURCE_CONNECTORS = connectorResponse.connectors;
+    state.normalizer = health.materialNormalizer;
     state.gateway = "online";
     await syncRepository();
     const { results, status } = await searchDiscovery(state.query, ["builtin"]);
@@ -457,9 +477,8 @@ async function initialize() {
     state.providerStatus = status;
   } catch {
     state.gateway = "offline";
-    const { results, status } = localFallbackSearch(state.query, ["builtin"]);
-    state.results = results;
-    state.providerStatus = status;
+    state.results = [];
+    state.providerStatus = [];
   }
   render();
 }

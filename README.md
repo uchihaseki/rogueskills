@@ -1,101 +1,114 @@
-# RogueSkills Prototype
+# RogueSkills
 
-一个把 Skill Evolution 表达为肉鸽 Run 的零依赖浏览器原型。
+RogueSkills 是一个可发现、评测、进化和版本化 Agent Skill 的实验平台。当前正式架构采用浏览器 JavaScript 前端与 Python 后端；Benchmark、Discovery、Genome 和 Evolution 的权威算法均在 Python 运行。
 
-现在还包含 Skill Discovery 工作台，可从公开仓库发现 Skill，或把 SOP/Runbook 转换为隔离的 Skill Genome 候选。
+## 技术栈
 
-## 运行
+- Python 3.12、FastAPI、Pydantic v2
+- SQLAlchemy 2、Alembic；本地使用 SQLite，生产使用 PostgreSQL
+- LangGraph Agent Runtime 扩展点、Celery/Redis 后台任务扩展点
+- 原生 ES Modules 前端；只通过 HTTP API 提交命令和读取权威状态
+- pytest、unittest、Node smoke tests
 
-需要 Node.js 22.5+。服务端使用 Node 内置 SQLite，不需要安装第三方依赖。
+完整决策与模块边界见 `docs/python-architecture.md`。
+
+## 本地运行
+
+推荐安装 `uv`，也可以直接使用 Python venv。
 
 ```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
 npm start
 ```
 
-然后访问：
+访问：
 
-```text
-http://localhost:4173
-```
+- Evolution Run：http://127.0.0.1:4173
+- Skill Discovery：http://127.0.0.1:4173/discovery.html
+- OpenAPI：http://127.0.0.1:4173/api/docs
 
-Skill Discovery：
-
-```text
-http://localhost:4173/discovery.html
-```
-
-默认数据库：
-
-```text
-data/rogueskills.db
-```
-
-如果需要提高 GitHub 公共 API 限额，可以只在服务端配置：
+默认数据库为 `data/rogueskills.db`。GitHub Token 只配置在 Python 后端：
 
 ```bash
-GITHUB_TOKEN=your_token npm start
+ROGUESKILLS_GITHUB_TOKEN=your_token npm start
+```
+
+SOP 转换使用 OpenAI-compatible LLM 做语义归一化：
+
+```bash
+ROGUESKILLS_LLM_BASE_URL=https://你的模型服务/v1 \
+ROGUESKILLS_LLM_API_KEY=your_key \
+ROGUESKILLS_LLM_MODEL=your_model \
+npm start
+```
+
+模型没有工具权限；输出仍会经过 Contract、静态安全和许可证校验。
+
+PostgreSQL 与 Redis 开发环境：
+
+```bash
+docker compose up -d postgres redis
+ROGUESKILLS_DATABASE_URL=postgresql+psycopg://rogueskills:rogueskills-dev@127.0.0.1:5432/rogueskills npm start
+```
+
+数据库迁移：
+
+```bash
+.venv/bin/alembic upgrade head
 ```
 
 ## 测试
 
 ```bash
-npm test
+npm test                       # 前端/旧基线回归 + 无依赖 Python Domain 测试
 npm run test:frontend
-npm run test:backend
-npm run test:core
-npm run test:integration
+npm run test:python            # Python Domain、Repository 和 FastAPI 集成测试
 ```
 
-## 已实现
+`legacy/` 中保留冻结的 Node 原型，作用是迁移行为对拍。它不是生产入口，也不会由 FastAPI 静态服务暴露。
 
-- Seed 随机地图
-- 三幕业务场景
-- 普通、精英、实验室、休息和 Boss 节点
-- 怪物/失败模式评估
-- Stability、Compute、Complexity
-- 三选一 Mutation
-- 武器进化配方
-- 本地存档和 Run Replay
-- 多来源 Skill 搜索与统一排序
-- GitHub `SKILL.md` / README 快照拉取
-- SOP、Runbook、Checklist 转 Skill Genome
-- 许可证与危险内容风险扫描
-- 隔离候选库和 JSON 导出
-- Skill Genome JSON Schema 1.0
-- SQLite Skill、版本、来源快照和评估记录
-- Initial Skill Library 准入与人工晋升
-- 确定性多用例 Benchmark Runner
-- 服务端 Search Gateway、缓存和凭证隔离
-- Evolution Run 从 Initial Library 选择基础 Skill
+## 安全与权威边界
 
-当前 Benchmark 是本地确定性用例执行器，不包含随机分数；它尚未调用真实 LLM 或浏览器工具。GitHub Discovery 在用户启用远程来源时会通过服务端访问 GitHub 公共 API。
+- 外部或人工创建的 Skill 强制进入 `quarantine`，客户端提交的 `status` 不生效。
+- 晋升必须引用当前 Skill Version 的准入 Evaluation。
+- Evolution Run 的每次命令必须携带 `expectedRevision`，过期操作会被拒绝。
+- 前端不计算 Benchmark 结果，不执行 Discovery/Mutation/生命周期算法。
+- GitHub Token 只发送到 `https://api.github.com/`。
+- `/api/benchmark/scenario` 只返回非权威预览；正式结果由 `/api/runs` 状态机产生。
+- Hidden Dataset、答案和详细诊断必须只存在于后端 Runtime Worker。
 
 ## 项目结构
 
 ```text
-src/
-├── frontend/       浏览器界面、交互和 API Client
-├── backend/        API、Repository、外部连接器、生命周期和服务端编排
-├── core/           Benchmark、Discovery、Evolution 和 Genome 纯领域逻辑
-└── contracts/      前端、后端和算法共享的数据协议
+backend/rogueskills/
+├── api/                 FastAPI 与版本化请求模型
+├── application/         Skill、Run 命令服务
+├── domain/              Genome、Discovery、Benchmark、Evolution 纯 Python 算法
+├── agents/              LangGraph 编排与 Runtime/Evaluator/Planner Port
+├── adapters/            GitHub、LLM、Browser、MCP 等外部适配器
+├── contracts/           Runtime、Evaluation、Mutation Pydantic Contract
+└── infrastructure/      SQLAlchemy、Alembic、Queue、Storage
 
+src/
+├── frontend/            浏览器 ES Modules，只调用 API
+└── contracts/           跨语言 JSON Schema
+
+legacy/                  冻结的 Node 迁移基线
 tests/
-├── frontend/
-├── backend/
-├── core/
-└── integration/
+├── python/              Python Domain/API/生命周期测试
+├── frontend/            API-only 前端 smoke tests
+└── backend/core/...     冻结 Node 基线测试
 ```
 
-P1 由前端、后端和算法三人协同开发。模块归属、契约变更和集成规则见 `docs/development-ownership.md`。
+## 当前能力
 
-## 设计文档
+- Skill Discovery、GitHub 快照、统一排序和风险扫描
+- SOP/Runbook/Checklist → Skill Genome 1.0
+- Quarantine Repository、不可变版本、来源快照和准入评测
+- Initial Library 人工晋升与当前版本校验
+- 服务端权威 Evolution Run、固定 Seed Replay、Mutation 和武器进化
+- 确定性六用例 Benchmark
+- LangGraph Runtime、Output Evaluator、Mutation Planner 的类型化扩展接口
 
-- `design.md`：Skill Evolution 底层架构
-- `roguelike-design.md`：肉鸽化产品设计
-- `roguelike-skill-mapping.md`：游戏元素与 Skill 概念映射
-- `docs/prototype-development-plan.md`：原型范围、模块和验收标准
-- `docs/skill-discovery-design.md`：搜索、拉取、SOP 转换与安全入库协议
-- `docs/p0-architecture.md`：P0 Repository、Benchmark、Gateway 与 API
-- `docs/development-ownership.md`：前端、后端、算法的模块归属与协作规则
-- `docs/contracts-v1.md`：P1 跨模块契约基线
-- `docs/p1-development-plan.md`：三人任务、依赖、里程碑和集成矩阵
+真实 LLM/Playwright Runtime、Hidden Dataset Worker、Genome JSON Patch 和 Candidate 落库仍属于下一阶段实现范围。

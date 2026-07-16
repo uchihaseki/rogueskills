@@ -1,5 +1,7 @@
 # RogueSkills 三人协作与模块归属
 
+> v0.2 更新：后端、算法和 Agent Runtime 已迁入 `backend/rogueskills/`；浏览器不再导入 Core。最新依赖方向和框架决策见 `python-architecture.md`。
+
 ## 1. 目的
 
 项目进入 P1 后由前端、后端和算法三位负责人并行开发。模块按职责而不是页面拆分，跨模块只通过版本化契约协作。

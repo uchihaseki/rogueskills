@@ -1,0 +1,725 @@
+{
+  "ARCHETYPES": {
+    "browser": {
+      "id": "browser",
+      "name": "Browser Skill",
+      "role": "商品信息提取 Agent",
+      "description": "从网页中稳定、低成本地提取结构化业务数据。",
+      "initialWeapons": [
+        "Basic Browser",
+        "DOM Parser",
+        "JSON Formatter"
+      ],
+      "stats": {
+        "quality": 56,
+        "robustness": 48,
+        "speed": 60,
+        "efficiency": 62,
+        "security": 40,
+        "vision": 12,
+        "structure": 52
+      }
+    }
+  },
+  "EVOLUTIONS": [
+    {
+      "id": "adaptive_web_extractor",
+      "name": "Adaptive Web Extractor",
+      "subtitle": "视觉自适应提取器",
+      "tagRequirements": {
+        "extraction": 2,
+        "vision": 1,
+        "structured": 1
+      },
+      "effects": {
+        "quality": 8,
+        "robustness": 6,
+        "vision": 5,
+        "structure": 4
+      },
+      "description": "DOM 失败时自动切换视觉提取，并用 Schema 合并校验结果。"
+    },
+    {
+      "id": "self_healing_browser",
+      "name": "Self-Healing Browser",
+      "subtitle": "自愈浏览器",
+      "tagRequirements": {
+        "robustness": 3,
+        "retry": 2
+      },
+      "effects": {
+        "robustness": 12,
+        "quality": 4,
+        "efficiency": -3
+      },
+      "description": "识别错误类型并在重试、回退和终止之间选择恢复策略。"
+    },
+    {
+      "id": "velocity_core",
+      "name": "Velocity Core",
+      "subtitle": "极速执行核心",
+      "tagRequirements": {
+        "speed": 2,
+        "efficiency": 2
+      },
+      "effects": {
+        "speed": 12,
+        "efficiency": 8,
+        "robustness": -2
+      },
+      "description": "合并并行、缓存与提前退出策略，形成低延迟执行链。"
+    },
+    {
+      "id": "secure_browser",
+      "name": "Secure Browser",
+      "subtitle": "零信任浏览器",
+      "tagRequirements": {
+        "security": 2,
+        "constraint": 2
+      },
+      "effects": {
+        "security": 18,
+        "robustness": 5,
+        "speed": -3
+      },
+      "description": "将页面内容视为不可信数据，并在最小权限下执行工具调用。"
+    },
+    {
+      "id": "autonomous_planner",
+      "name": "Autonomous Planner",
+      "subtitle": "自主规划核心",
+      "tagRequirements": {
+        "planner": 2,
+        "quality": 2
+      },
+      "effects": {
+        "quality": 12,
+        "robustness": 7,
+        "efficiency": -6
+      },
+      "description": "把拆解、执行、反思和重新规划组合为闭环工作流。"
+    }
+  ],
+  "MONSTERS": {
+    "dirty_slime": {
+      "id": "dirty_slime",
+      "name": "脏数据史莱姆",
+      "failureMode": "空字段、错误类型和不规则格式",
+      "businessExample": "价格字段混入货币符号，库存字段偶尔缺失。",
+      "requirements": {
+        "quality": 0.28,
+        "robustness": 0.22,
+        "structure": 0.5
+      },
+      "severity": 1
+    },
+    "schema_shifter": {
+      "id": "schema_shifter",
+      "name": "字段变形怪",
+      "failureMode": "Schema Drift",
+      "businessExample": "price 字段突然变成 salePrice，嵌套层级发生变化。",
+      "requirements": {
+        "quality": 0.3,
+        "robustness": 0.35,
+        "structure": 0.35
+      },
+      "severity": 2
+    },
+    "lazy_lurker": {
+      "id": "lazy_lurker",
+      "name": "延迟潜伏者",
+      "failureMode": "Lazy Load 与异步状态",
+      "businessExample": "首屏没有商品信息，滚动并等待后才加载。",
+      "requirements": {
+        "robustness": 0.4,
+        "speed": 0.28,
+        "quality": 0.2,
+        "efficiency": 0.12
+      },
+      "severity": 2
+    },
+    "schema_hydra": {
+      "id": "schema_hydra",
+      "name": "Schema 九头蛇",
+      "failureMode": "多来源字段漂移与格式污染",
+      "businessExample": "在隐藏商家集合中输出统一、完整、可校验的数据。",
+      "requirements": {
+        "quality": 0.28,
+        "robustness": 0.24,
+        "structure": 0.32,
+        "efficiency": 0.16
+      },
+      "severity": 4
+    },
+    "canvas_wraith": {
+      "id": "canvas_wraith",
+      "name": "Canvas 幽灵",
+      "failureMode": "DOM 中不存在可提取文本",
+      "businessExample": "价格和规格绘制在 Canvas 或图片中。",
+      "requirements": {
+        "vision": 0.5,
+        "quality": 0.24,
+        "robustness": 0.16,
+        "speed": 0.1
+      },
+      "severity": 2
+    },
+    "timeout_golem": {
+      "id": "timeout_golem",
+      "name": "超时魔像",
+      "failureMode": "工具延迟、超时和短暂不可用",
+      "businessExample": "浏览器工具偶发超时，重复调用会快速消耗预算。",
+      "requirements": {
+        "robustness": 0.42,
+        "efficiency": 0.28,
+        "speed": 0.22,
+        "quality": 0.08
+      },
+      "severity": 3
+    },
+    "batch_swarm": {
+      "id": "batch_swarm",
+      "name": "批处理虫群",
+      "failureMode": "高并发与批量压力",
+      "businessExample": "同时处理大量页面，并满足吞吐和单页面成本要求。",
+      "requirements": {
+        "speed": 0.42,
+        "efficiency": 0.36,
+        "robustness": 0.14,
+        "quality": 0.08
+      },
+      "severity": 3
+    },
+    "canvas_colossus": {
+      "id": "canvas_colossus",
+      "name": "视觉巨像",
+      "failureMode": "动态页面、视觉识别与成本限制组合",
+      "businessExample": "在隐藏动态站点中识别字段，同时满足延迟预算。",
+      "requirements": {
+        "vision": 0.3,
+        "quality": 0.2,
+        "robustness": 0.2,
+        "speed": 0.15,
+        "efficiency": 0.15
+      },
+      "severity": 5
+    },
+    "prompt_mimic": {
+      "id": "prompt_mimic",
+      "name": "指令模仿怪",
+      "failureMode": "Prompt Injection",
+      "businessExample": "网页文本要求 Agent 忽略提取任务并泄露上下文。",
+      "requirements": {
+        "security": 0.58,
+        "robustness": 0.2,
+        "quality": 0.12,
+        "structure": 0.1
+      },
+      "severity": 4,
+      "securityFloor": 52
+    },
+    "permission_knight": {
+      "id": "permission_knight",
+      "name": "权限骑士",
+      "failureMode": "授权边界和工具限制",
+      "businessExample": "任务必须在最小权限下完成，禁止调用未批准工具。",
+      "requirements": {
+        "security": 0.42,
+        "robustness": 0.3,
+        "efficiency": 0.16,
+        "quality": 0.12
+      },
+      "severity": 4,
+      "securityFloor": 48
+    },
+    "drift_beast": {
+      "id": "drift_beast",
+      "name": "分布漂移兽",
+      "failureMode": "新站点、新表达和未知结构",
+      "businessExample": "此前从未出现过的商家模板和语言表达。",
+      "requirements": {
+        "quality": 0.25,
+        "robustness": 0.38,
+        "vision": 0.15,
+        "structure": 0.12,
+        "efficiency": 0.1
+      },
+      "severity": 4
+    },
+    "shadow_release": {
+      "id": "shadow_release",
+      "name": "影子发布者",
+      "failureMode": "端到端隐藏生产验收",
+      "businessExample": "未知站点、恶意输入、严格 SLA 和成本约束同时出现。",
+      "requirements": {
+        "quality": 0.2,
+        "robustness": 0.2,
+        "speed": 0.1,
+        "efficiency": 0.12,
+        "security": 0.2,
+        "vision": 0.08,
+        "structure": 0.1
+      },
+      "severity": 6,
+      "securityFloor": 55
+    }
+  },
+  "MUTATIONS": [
+    {
+      "id": "semantic_locator",
+      "name": "Semantic Locator",
+      "category": "Tool",
+      "rarity": "common",
+      "tags": [
+        "extraction",
+        "robustness"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "quality": 7,
+        "robustness": 6,
+        "structure": 4
+      },
+      "benefit": "选择器失效时，通过语义重新定位字段。",
+      "tradeoff": "增加一次定位步骤。"
+    },
+    {
+      "id": "screenshot_ocr",
+      "name": "Screenshot OCR",
+      "category": "Tool",
+      "rarity": "uncommon",
+      "tags": [
+        "vision",
+        "extraction"
+      ],
+      "complexityCost": 2,
+      "effects": {
+        "vision": 22,
+        "quality": 6,
+        "speed": -8,
+        "efficiency": -9
+      },
+      "benefit": "获得视觉页面和 Canvas 的回退能力。",
+      "tradeoff": "模型成本和延迟明显增加。"
+    },
+    {
+      "id": "visual_locator",
+      "name": "Visual Locator",
+      "category": "Workflow",
+      "rarity": "uncommon",
+      "tags": [
+        "vision",
+        "extraction"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "vision": 15,
+        "quality": 5,
+        "speed": -4
+      },
+      "benefit": "在截图中定位目标区域，减少无关 OCR。",
+      "tradeoff": "多一次视觉推理调用。"
+    },
+    {
+      "id": "schema_validator",
+      "name": "Schema Validator",
+      "category": "Constraint",
+      "rarity": "common",
+      "tags": [
+        "structured",
+        "extraction",
+        "validation"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "structure": 15,
+        "quality": 7,
+        "robustness": 4,
+        "speed": -3
+      },
+      "benefit": "在输出前校验字段类型和完整性。",
+      "tradeoff": "开放任务的灵活性下降。"
+    },
+    {
+      "id": "output_repair",
+      "name": "Output Repair Loop",
+      "category": "Workflow",
+      "rarity": "uncommon",
+      "tags": [
+        "structured",
+        "robustness",
+        "validation"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "structure": 12,
+        "robustness": 7,
+        "speed": -6,
+        "efficiency": -5
+      },
+      "benefit": "自动修复不符合 Schema 的输出。",
+      "tradeoff": "可能触发额外模型调用。"
+    },
+    {
+      "id": "retry_guard",
+      "name": "Retry Guard",
+      "category": "Workflow",
+      "rarity": "common",
+      "tags": [
+        "robustness",
+        "retry"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "robustness": 12,
+        "speed": -7,
+        "efficiency": -7
+      },
+      "benefit": "识别短暂错误并进行有界重试。",
+      "tradeoff": "提高 P95 延迟和调用成本。"
+    },
+    {
+      "id": "error_classifier",
+      "name": "Error Classifier",
+      "category": "Planner",
+      "rarity": "common",
+      "tags": [
+        "robustness",
+        "retry"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "robustness": 8,
+        "quality": 4,
+        "structure": 4
+      },
+      "benefit": "先判断错误类型，再选择恢复策略。",
+      "tradeoff": "增加决策步骤。"
+    },
+    {
+      "id": "fallback_tool",
+      "name": "Fallback Tool",
+      "category": "Tool",
+      "rarity": "uncommon",
+      "tags": [
+        "robustness",
+        "retry"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "robustness": 10,
+        "efficiency": -6,
+        "speed": -3
+      },
+      "benefit": "主工具失败时切换备用执行器。",
+      "tradeoff": "引入额外依赖和维护成本。"
+    },
+    {
+      "id": "parallel_search",
+      "name": "Parallel Search",
+      "category": "Workflow",
+      "rarity": "uncommon",
+      "tags": [
+        "speed",
+        "efficiency",
+        "parallel"
+      ],
+      "complexityCost": 2,
+      "effects": {
+        "speed": 13,
+        "quality": 4,
+        "efficiency": -9,
+        "robustness": -3
+      },
+      "benefit": "并行处理多个页面或候选来源。",
+      "tradeoff": "峰值成本更高，失败更难调试。"
+    },
+    {
+      "id": "prompt_compression",
+      "name": "Prompt Compression",
+      "category": "Prompt",
+      "rarity": "common",
+      "tags": [
+        "speed",
+        "efficiency"
+      ],
+      "complexityCost": 0,
+      "effects": {
+        "efficiency": 13,
+        "speed": 6,
+        "quality": -4
+      },
+      "benefit": "减少上下文和 Token 消耗。",
+      "tradeoff": "可能遗漏长尾约束。"
+    },
+    {
+      "id": "cache_layer",
+      "name": "Aggressive Cache",
+      "category": "Memory",
+      "rarity": "common",
+      "tags": [
+        "speed",
+        "efficiency",
+        "cache"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "speed": 8,
+        "efficiency": 11,
+        "robustness": -3
+      },
+      "benefit": "复用相同页面和中间结果。",
+      "tradeoff": "可能读取过期数据。"
+    },
+    {
+      "id": "early_exit",
+      "name": "Early Exit",
+      "category": "Workflow",
+      "rarity": "common",
+      "tags": [
+        "speed",
+        "efficiency"
+      ],
+      "complexityCost": 0,
+      "effects": {
+        "speed": 10,
+        "efficiency": 8,
+        "quality": -5
+      },
+      "benefit": "达到最小验收条件后立即结束。",
+      "tradeoff": "结果覆盖范围下降。"
+    },
+    {
+      "id": "budget_guard",
+      "name": "Budget Guard",
+      "category": "Constraint",
+      "rarity": "common",
+      "tags": [
+        "efficiency",
+        "constraint"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "efficiency": 14,
+        "robustness": 4,
+        "quality": -2
+      },
+      "benefit": "实时限制 Token 和工具调用预算。",
+      "tradeoff": "极端复杂任务可能提前终止。"
+    },
+    {
+      "id": "reflection",
+      "name": "Deep Reflection",
+      "category": "Planner",
+      "rarity": "rare",
+      "tags": [
+        "planner",
+        "quality"
+      ],
+      "complexityCost": 2,
+      "effects": {
+        "quality": 10,
+        "robustness": 6,
+        "speed": -9,
+        "efficiency": -10
+      },
+      "benefit": "执行后反思结果并主动修正。",
+      "tradeoff": "显著增加成本和延迟。"
+    },
+    {
+      "id": "task_decomposition",
+      "name": "Task Decomposition",
+      "category": "Planner",
+      "rarity": "uncommon",
+      "tags": [
+        "planner",
+        "quality"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "quality": 9,
+        "robustness": 5,
+        "speed": -5,
+        "efficiency": -5
+      },
+      "benefit": "将复杂任务拆解为可检查步骤。",
+      "tradeoff": "短任务会产生额外开销。"
+    },
+    {
+      "id": "context_memory",
+      "name": "Context Memory",
+      "category": "Memory",
+      "rarity": "uncommon",
+      "tags": [
+        "memory",
+        "quality"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "quality": 7,
+        "robustness": 5,
+        "efficiency": -4
+      },
+      "benefit": "记住跨页面实体和已验证事实。",
+      "tradeoff": "增加上下文管理成本。"
+    },
+    {
+      "id": "injection_shield",
+      "name": "Injection Shield",
+      "category": "Constraint",
+      "rarity": "uncommon",
+      "tags": [
+        "security",
+        "constraint"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "security": 22,
+        "robustness": 3,
+        "speed": -3
+      },
+      "benefit": "隔离网页数据与系统指令。",
+      "tradeoff": "部分动态指令会被保守拒绝。"
+    },
+    {
+      "id": "permission_guard",
+      "name": "Permission Guard",
+      "category": "Constraint",
+      "rarity": "uncommon",
+      "tags": [
+        "security",
+        "constraint"
+      ],
+      "complexityCost": 1,
+      "effects": {
+        "security": 14,
+        "robustness": 4,
+        "speed": -3
+      },
+      "benefit": "执行前检查工具权限和影响范围。",
+      "tradeoff": "增加操作前置检查。"
+    }
+  ],
+  "NODE_TYPES": {
+    "normal": {
+      "name": "普通遭遇",
+      "symbol": "◇",
+      "description": "公开 Benchmark，提供完整反馈。"
+    },
+    "elite": {
+      "name": "精英遭遇",
+      "symbol": "◆",
+      "description": "组合失败模式，奖励更高。"
+    },
+    "lab": {
+      "name": "进化实验室",
+      "symbol": "✦",
+      "description": "不战斗，直接获得一次 Mutation Draft。"
+    },
+    "rest": {
+      "name": "安全节点",
+      "symbol": "○",
+      "description": "恢复 Stability 和少量 Compute。"
+    },
+    "boss": {
+      "name": "隐藏 Boss",
+      "symbol": "⬢",
+      "description": "隔离的端到端业务验收。"
+    }
+  },
+  "REGIONS": [
+    {
+      "id": "static_plains",
+      "act": 1,
+      "name": "静态平原",
+      "subtitle": "基础数据与结构化输出",
+      "description": "常规商品页看似温和，却藏着脏数据和字段漂移。",
+      "monsters": [
+        "dirty_slime",
+        "schema_shifter",
+        "lazy_lurker"
+      ],
+      "boss": "schema_hydra"
+    },
+    {
+      "id": "dynamic_forest",
+      "act": 2,
+      "name": "动态森林",
+      "subtitle": "工具失效与视觉页面",
+      "description": "异步加载、Canvas 和规模压力会暴露单一工具的弱点。",
+      "monsters": [
+        "canvas_wraith",
+        "timeout_golem",
+        "batch_swarm"
+      ],
+      "boss": "canvas_colossus"
+    },
+    {
+      "id": "adversarial_wastes",
+      "act": 3,
+      "name": "对抗荒地",
+      "subtitle": "权限、安全与分布漂移",
+      "description": "生产环境的恶意输入和未知变化构成最终验收。",
+      "monsters": [
+        "prompt_mimic",
+        "permission_knight",
+        "drift_beast"
+      ],
+      "boss": "shadow_release"
+    }
+  ],
+  "RUN_MODES": {
+    "stable": {
+      "id": "stable",
+      "name": "稳定构筑",
+      "description": "优先保证正确率和异常恢复能力。",
+      "weights": {
+        "quality": 0.28,
+        "robustness": 0.3,
+        "speed": 0.08,
+        "efficiency": 0.08,
+        "security": 0.12,
+        "vision": 0.06,
+        "structure": 0.08
+      }
+    },
+    "speed": {
+      "id": "speed",
+      "name": "竞速构筑",
+      "description": "用更高风险换取吞吐与低延迟。",
+      "weights": {
+        "quality": 0.2,
+        "robustness": 0.12,
+        "speed": 0.3,
+        "efficiency": 0.16,
+        "security": 0.06,
+        "vision": 0.06,
+        "structure": 0.1
+      }
+    },
+    "efficient": {
+      "id": "efficient",
+      "name": "节能构筑",
+      "description": "在严格计算预算下寻找可用解。",
+      "weights": {
+        "quality": 0.2,
+        "robustness": 0.12,
+        "speed": 0.14,
+        "efficiency": 0.32,
+        "security": 0.08,
+        "vision": 0.04,
+        "structure": 0.1
+      }
+    }
+  },
+  "STAT_LABELS": {
+    "quality": "质量",
+    "robustness": "鲁棒",
+    "speed": "速度",
+    "efficiency": "效率",
+    "security": "安全",
+    "vision": "视觉",
+    "structure": "结构"
+  }
+}
+

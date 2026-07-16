@@ -2,3 +2,12 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 .DS_Store
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+__pycache__/
+*.py[cod]
+.env
+htmlcov/
+.coverage
