@@ -19,7 +19,7 @@
   --purple: #bc8cff;
   --yellow: #f6d365;
   --radius: 16px;
-  --mono: "SFMono-Regular", "Roboto Mono", Consolas, monospace;
+  --mono: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
   --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -41,6 +41,7 @@ body {
     radial-gradient(circle at 92% 18%, rgba(92, 225, 161, 0.06), transparent 24rem),
     var(--bg);
   font-family: var(--sans);
+  zoom: 1.1;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -112,7 +113,7 @@ button {
 
 .brand small {
   color: var(--muted);
-  font: 500 9px var(--mono);
+  font: 500 12px var(--mono);
   letter-spacing: 0.17em;
 }
 
@@ -148,7 +149,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 7px;
   color: var(--muted);
-  font: 500 9px var(--mono);
+  font: 500 12px var(--mono);
   text-decoration: none;
   transition: 150ms ease;
 }
@@ -263,13 +264,13 @@ button {
 .library-skill-button span,
 .library-skill-button small {
   color: var(--muted);
-  font: 500 7px var(--mono);
+  font: 500 10px var(--mono);
   text-transform: uppercase;
 }
 
 .library-skill-button strong {
   overflow: hidden;
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -280,7 +281,7 @@ button {
   border: 1px dashed var(--line);
   border-radius: 7px;
   color: var(--muted);
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
 }
 
 .role-orb {
@@ -316,7 +317,7 @@ button {
   border-radius: 999px;
   color: var(--lime);
   background: var(--lime-soft);
-  font: 500 9px var(--mono);
+  font: 500 12px var(--mono);
 }
 
 .card-description {
@@ -371,7 +372,7 @@ button {
 .mini-stats span,
 .mini-stats strong {
   color: var(--muted);
-  font: 500 9px var(--mono);
+  font: 500 12px var(--mono);
 }
 
 .mini-stats strong {
@@ -501,7 +502,7 @@ button {
 .seed-block p {
   margin: 7px 0 0;
   color: var(--muted-2);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .primary-button,
@@ -586,7 +587,7 @@ button {
 
 .protocol-strip small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .protocol-strip > i {
@@ -599,7 +600,7 @@ button {
 .run-footer {
   margin-top: 36px;
   color: var(--muted-2);
-  font: 500 9px var(--mono);
+  font: 500 12px var(--mono);
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -704,7 +705,7 @@ button {
 
 .hud-card small {
   color: var(--muted);
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
   letter-spacing: 0.1em;
 }
 
@@ -721,7 +722,7 @@ button {
 
 .resource-copy strong i {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
 }
 
@@ -766,7 +767,7 @@ button {
 .score-hud span {
   align-self: center;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .game-grid {
@@ -802,7 +803,7 @@ button {
 .panel-heading span,
 .log-heading span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .panel-heading h2,
@@ -843,7 +844,7 @@ button {
 
 .base-weapons b {
   color: var(--muted-2);
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
 }
 
 .base-weapons span {
@@ -865,7 +866,7 @@ button {
 .stat-row span,
 .stat-row strong {
   color: var(--muted);
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
 }
 
 .stat-row strong {
@@ -916,18 +917,18 @@ button {
 }
 
 .equipped-mutation strong {
-  font: 500 9px var(--mono);
+  font: 500 12px var(--mono);
 }
 
 .equipped-mutation small {
   margin-top: 3px;
   color: var(--muted-2);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .equipped-mutation > b {
   color: var(--purple);
-  font: 500 9px var(--mono);
+  font: 500 12px var(--mono);
 }
 
 .empty-copy {
@@ -962,13 +963,13 @@ button {
 }
 
 .evolution-badge strong {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .evolution-badge small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .recipe-list {
@@ -985,7 +986,7 @@ button {
 .recipe strong,
 .recipe span,
 .recipe small {
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
 }
 
 .recipe span,
@@ -1043,7 +1044,7 @@ button {
 .region-seed small,
 .region-seed strong {
   display: block;
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
 }
 
 .region-seed small {
@@ -1096,12 +1097,12 @@ button {
 
 .layer-label span {
   color: var(--muted-2);
-  font: 500 9px var(--mono);
+  font: 500 12px var(--mono);
 }
 
 .layer-label small {
   color: #3f4942;
-  font: 500 7px var(--mono);
+  font: 500 10px var(--mono);
   letter-spacing: 0.1em;
 }
 
@@ -1209,7 +1210,7 @@ button {
 
 .node-copy small {
   color: var(--muted-2);
-  font: 500 7px var(--mono);
+  font: 500 10px var(--mono);
 }
 
 .node-copy strong {
@@ -1219,14 +1220,14 @@ button {
 
 .node-copy em {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   font-style: normal;
 }
 
 .node-enter {
   margin-top: 10px;
   color: var(--lime);
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
 }
 
 .path-line {
@@ -1241,7 +1242,7 @@ button {
   border-radius: 50%;
   color: var(--muted-2);
   background: var(--panel-strong);
-  font: 500 9px var(--mono);
+  font: 500 12px var(--mono);
 }
 
 .map-legend {
@@ -1257,7 +1258,7 @@ button {
   align-items: center;
   gap: 6px;
   color: var(--muted-2);
-  font: 500 7px var(--mono);
+  font: 500 10px var(--mono);
 }
 
 .map-legend i {
@@ -1338,7 +1339,7 @@ button {
 .failure-mode {
   margin: 0 0 18px !important;
   color: var(--orange) !important;
-  font: 500 9px var(--mono) !important;
+  font: 500 12px var(--mono) !important;
 }
 
 .business-case,
@@ -1358,7 +1359,7 @@ button {
 .business-case > span,
 .requirement-list > span {
   color: var(--muted-2);
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
   text-transform: uppercase;
 }
 
@@ -1380,7 +1381,7 @@ button {
 .requirement-list div span,
 .requirement-list div strong {
   color: var(--muted);
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
 }
 
 .requirement-list div strong {
@@ -1395,14 +1396,14 @@ button {
   border-radius: 7px;
   color: var(--red);
   background: rgba(255, 105, 111, 0.06);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .deterministic-note {
   display: block;
   margin-top: 10px;
   color: var(--muted-2);
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -1485,7 +1486,7 @@ button {
 .decision-rules span,
 .decision-rules strong {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .decision-rules strong {
@@ -1496,7 +1497,7 @@ button {
 .select-hint {
   margin-top: 28px !important;
   color: var(--lime) !important;
-  font: 500 9px var(--mono) !important;
+  font: 500 12px var(--mono) !important;
 }
 
 .utility-content {
@@ -1525,7 +1526,7 @@ button {
 .utility-reward strong,
 .lab-note {
   color: var(--muted);
-  font: 500 9px var(--mono);
+  font: 500 12px var(--mono);
 }
 
 .utility-reward strong {
@@ -1567,7 +1568,7 @@ button {
   border-radius: 5px;
   color: #0d1510;
   background: var(--mint);
-  font: 500 9px var(--mono);
+  font: 500 12px var(--mono);
 }
 
 .failed .result-verdict > span {
@@ -1583,7 +1584,7 @@ button {
 
 .result-verdict small {
   color: var(--muted-2);
-  font: 500 7px var(--mono);
+  font: 500 10px var(--mono);
 }
 
 .result-verdict strong {
@@ -1593,7 +1594,7 @@ button {
 
 .result-verdict strong i {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   font-style: normal;
 }
 
@@ -1612,7 +1613,7 @@ button {
 .metric-grid small,
 .metric-grid strong {
   color: var(--muted);
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
 }
 
 .metric-grid strong {
@@ -1639,7 +1640,7 @@ button {
 .benchmark-case-list strong,
 .benchmark-case-list small {
   color: var(--muted);
-  font: 500 7px var(--mono);
+  font: 500 10px var(--mono);
 }
 
 .benchmark-case-list .passed span {
@@ -1667,14 +1668,14 @@ button {
 .reward-heading p {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
 .reward-heading > span {
   flex: 0 0 auto;
   color: var(--muted-2);
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
 }
 
 .mutation-draft {
@@ -1720,7 +1721,7 @@ button {
 .mutation-card-foot span,
 .mutation-card-foot strong {
   color: var(--muted-2);
-  font: 500 7px var(--mono);
+  font: 500 10px var(--mono);
   font-style: normal;
   text-transform: uppercase;
 }
@@ -1747,7 +1748,7 @@ button {
 .effect {
   padding: 3px 5px;
   border-radius: 4px;
-  font: 500 7px var(--mono);
+  font: 500 10px var(--mono);
 }
 
 .effect.positive {
@@ -1763,21 +1764,21 @@ button {
 .mutation-card p {
   margin: 9px 0 7px;
   color: #b6c1b9;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
 .tradeoff {
   margin-bottom: 9px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
 .tradeoff span {
   margin-right: 5px;
   color: var(--orange);
-  font: 500 7px var(--mono);
+  font: 500 10px var(--mono);
 }
 
 .mutation-card-foot {
@@ -1801,7 +1802,7 @@ button {
   margin: 15px auto 0;
   color: var(--muted);
   background: transparent;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .text-button:hover {
@@ -1837,7 +1838,7 @@ button {
 
 .run-summary span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .run-summary strong {
@@ -1873,7 +1874,7 @@ button {
 .log-entry > span,
 .log-entry small {
   color: var(--muted-2);
-  font: 500 8px var(--mono);
+  font: 500 11px var(--mono);
 }
 
 .log-entry i {
@@ -1903,7 +1904,7 @@ button {
 .log-entry p {
   margin: 0;
   color: #aab5ad;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .run-footer {
