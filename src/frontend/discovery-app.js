@@ -483,4 +483,4 @@ async function initialize() {
   render();
 }
 
-initialize();
+initialize().then(r => {});
