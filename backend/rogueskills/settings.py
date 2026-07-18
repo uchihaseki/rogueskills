@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 60
     search_cache_ttl_seconds: int = 60
     max_request_bytes: int = 2_000_000
+    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
     project_root: Path = PROJECT_ROOT
 
 

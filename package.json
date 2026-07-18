@@ -8,10 +8,14 @@
   },
   "scripts": {
     "start": "PYTHONPATH=backend .venv/bin/python -m rogueskills.main",
+    "start-win": "set \"PYTHONPATH=backend\" && .venv\\Scripts\\python.exe -m rogueskills.main",
     "test": "node --test && PYTHONPATH=backend .venv/bin/python -m unittest tests.python.test_domain",
     "test:python": "PYTHONPATH=backend .venv/bin/python -m pytest tests/python",
     "test:python-domain": "PYTHONPATH=backend .venv/bin/python -m unittest tests.python.test_domain -v",
     "test:frontend": "node --test tests/frontend/*.test.js",
-    "test:legacy": "node --test tests/backend/*.test.js tests/core/*.test.js tests/integration/*.test.js"
+    "test:legacy": "node --test tests/backend/*.test.js tests/core/*.test.js tests/integration/*.test.js",
+    "frontend:dev": "npm run dev --prefix frontend",
+    "frontend:build": "npm run build --prefix frontend",
+    "frontend:type-check": "npm run type-check --prefix frontend"
   }
 }

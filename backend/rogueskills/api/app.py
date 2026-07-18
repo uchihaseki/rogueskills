@@ -10,6 +10,7 @@ from uuid import uuid4
 import httpx
 from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from rogueskills.adapters.discovery_gateway import DiscoveryGateway
@@ -86,6 +87,13 @@ def create_app(
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
         lifespan=lifespan,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     app.state.settings = config
     app.state.repository = repository
@@ -304,41 +312,20 @@ def create_app(
 
     root = config.project_root
 
-    def static_file(path: Path) -> FileResponse:
+    def schema_file() -> FileResponse:
+        path = root / "src" / "contracts" / "skill-genome.schema.json"
         if not path.is_file():
             raise ApplicationError("FILE_NOT_FOUND", "文件不存在。", status_code=404)
         return FileResponse(
             path, headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
         )
 
-    @app.get("/", include_in_schema=False)
-    def index() -> FileResponse:
-        return static_file(root / "index.html")
-
-    @app.get("/index.html", include_in_schema=False)
-    def index_compatibility() -> FileResponse:
-        return static_file(root / "index.html")
-
-    @app.get("/discovery.html", include_in_schema=False)
-    def discovery_page() -> FileResponse:
-        return static_file(root / "discovery.html")
-
-    @app.get("/{asset_name:str}", include_in_schema=False)
-    def root_asset(asset_name: str) -> FileResponse:
-        if asset_name not in {"styles.css", "discovery.css"}:
-            raise ApplicationError("FILE_NOT_FOUND", "文件不存在。", status_code=404)
-        return static_file(root / asset_name)
-
-    @app.get("/src/frontend/{asset_path:path}", include_in_schema=False)
-    def frontend_asset(asset_path: str) -> FileResponse:
-        base = (root / "src" / "frontend").resolve()
-        path = (base / asset_path).resolve()
-        if base not in path.parents or path.suffix != ".js":
-            raise ApplicationError("FILE_NOT_FOUND", "文件不存在。", status_code=404)
-        return static_file(path)
+    @app.get("/api/schemas/skill-genome.schema.json", include_in_schema=False)
+    def genome_schema() -> FileResponse:
+        return schema_file()
 
     @app.get("/schemas/skill-genome.schema.json", include_in_schema=False)
-    def genome_schema() -> FileResponse:
-        return static_file(root / "src" / "contracts" / "skill-genome.schema.json")
+    def genome_schema_compatibility() -> FileResponse:
+        return schema_file()
 
     return app

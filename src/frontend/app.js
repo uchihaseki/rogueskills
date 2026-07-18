@@ -152,6 +152,30 @@ function makeSeed() {
   return `RUN-${part}`;
 }
 
+function animateSetupStats() {
+  if (typeof root.querySelectorAll !== "function") return;
+  const bars = root.querySelectorAll(".mini-stats i b");
+  if (!bars.length) return;
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !window.gsap) {
+    bars.forEach((bar) => { bar.style.width = bar.dataset.value; });
+    return;
+  }
+
+  window.gsap.fromTo(
+    bars,
+    { width: "0%" },
+    {
+      width: (index, bar) => bar.dataset.value,
+      duration: 1.15,
+      delay: 0.15,
+      stagger: 0.09,
+      ease: "power2.out",
+      overwrite: true,
+    },
+  );
+}
+
 function renderSetup() {
   const archetype = ARCHETYPES.browser;
   const selectedSkill =
@@ -233,7 +257,7 @@ function renderSetup() {
                   <div>
                     <span>${STAT_LABELS[stat]}</span>
                     <strong>${value}</strong>
-                    <i><b style="width:${value}%"></b></i>
+                    <i><b data-value="${value}%" style="width:0%"></b></i>
                   </div>`,
               )
               .join("")}
@@ -295,6 +319,7 @@ function renderSetup() {
       </footer>
     </main>
   `;
+  animateSetupStats();
 }
 
 function renderHud() {

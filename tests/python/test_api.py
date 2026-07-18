@@ -113,13 +113,14 @@ def test_full_api_flow_and_authoritative_run_state() -> None:
         assert stale.json()["error"]["code"] == "STALE_RUN_REVISION"
 
 
-def test_backend_source_is_not_exposed() -> None:
+def test_backend_is_api_only() -> None:
     with client() as api:
-        assert api.get("/").status_code == 200
-        assert api.get("/index.html").status_code == 200
-        assert "Evolution Run" in api.get("/index.html").text
-        assert api.get("/src/core/evolution/engine.js").status_code == 404
-        assert api.get("/src/frontend/app.js").status_code == 200
+        assert api.get("/").status_code == 404
+        assert api.get("/discovery").status_code == 404
+        assert api.get("/assets/index.js").status_code == 404
+        assert api.get("/src/frontend/app.js").status_code == 404
+        assert api.get("/api/health").status_code == 200
+        assert api.get("/api/schemas/skill-genome.schema.json").status_code == 200
 
 
 def test_material_conversion_uses_llm_normalizer_before_genome_build() -> None:
