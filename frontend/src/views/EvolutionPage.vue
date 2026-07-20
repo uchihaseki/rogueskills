@@ -30,44 +30,32 @@ async function captureScene(element: HTMLElement): Promise<HTMLCanvasElement> {
   })
 }
 
-async function startCharacterStage() {
+async function transitionTo(targetStage: SetupStage, sourceSelector: string) {
   if (transitionSource.value) return
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    stage.value = 'character'
+    stage.value = targetStage
     return
   }
-  const title = document.querySelector<HTMLElement>('.evolution-page > .title-screen')
-  if (!title) return
+  const source = document.querySelector<HTMLElement>(sourceSelector)
+  if (!source) return
   try {
     transitionDirection.value = 'fall'
-    pendingStage.value = 'character'
-    transitionSource.value = await captureScene(title)
+    pendingStage.value = targetStage
+    transitionSource.value = await captureScene(source)
   } catch {
-    stage.value = 'character'
+    stage.value = targetStage
     pendingStage.value = null
     transitionActive.value = false
     transitionSource.value = null
   }
 }
 
-async function returnToTitle() {
-  if (transitionSource.value) return
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    stage.value = 'title'
-    return
-  }
-  const character = document.querySelector<HTMLElement>('.evolution-page > .pixel-setup-shell')
-  if (!character) return
-  try {
-    transitionDirection.value = 'fall'
-    pendingStage.value = 'title'
-    transitionSource.value = await captureScene(character)
-  } catch {
-    stage.value = 'title'
-    pendingStage.value = null
-    transitionActive.value = false
-    transitionSource.value = null
-  }
+function startCharacterStage() {
+  return transitionTo('character', '.evolution-page > .title-screen')
+}
+
+function returnToTitle() {
+  return transitionTo('title', '.evolution-page > .pixel-setup-shell')
 }
 
 function startPreparedTransition() {
