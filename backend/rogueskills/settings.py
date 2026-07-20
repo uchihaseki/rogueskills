@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     )
 
     host: str = "127.0.0.1"
-    port: int = 4173
+    port: int = 5173
     database_url: str = Field(default=f"sqlite:///{PROJECT_ROOT / 'data' / 'rogueskills.db'}")
     github_token: str | None = None
     llm_base_url: str | None = None
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 60
     search_cache_ttl_seconds: int = 60
     max_request_bytes: int = 2_000_000
-    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    cors_origins: list[str] = ["http://localhost:5174", "http://127.0.0.1:5174"]
     project_root: Path = PROJECT_ROOT
 
 

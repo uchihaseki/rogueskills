@@ -6,6 +6,7 @@ from .benchmark import run_scenario_benchmark
 from .catalogs import (
     ARCHETYPES,
     EVOLUTIONS,
+    FINANCE_REGIONS,
     MONSTERS,
     MUTATIONS,
     NODE_TYPES,
@@ -20,6 +21,15 @@ MAX_STABILITY = 12
 MAX_COMPLEXITY = 8
 SAVE_VERSION = 2
 BASE_DIFFICULTY = [42, 50, 57]
+FINANCE_MUTATION_IDS = {
+    "source_triangulation",
+    "filing_recency_guard",
+    "accounting_normalizer",
+    "earnings_quality_check",
+    "valuation_sensitivity",
+    "risk_register",
+}
+BROWSER_ONLY_MUTATION_IDS = {"semantic_locator", "screenshot_ocr", "visual_locator"}
 
 
 def _mutation(mutation_id: str) -> dict[str, Any] | None:
@@ -67,9 +77,10 @@ def _create_node(
     }
 
 
-def generate_map(seed: str) -> list[dict[str, Any]]:
+def generate_map(seed: str, scenario_id: str = "browser") -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
-    for act_index, source_region in enumerate(REGIONS):
+    source_regions = FINANCE_REGIONS if scenario_id == "finance" else REGIONS
+    for act_index, source_region in enumerate(source_regions):
         region = deepcopy(source_region)
         random = create_rng(f"{seed}|map|act-{act_index + 1}")
         monster_order = shuffle(region["monsters"], random)
@@ -116,6 +127,8 @@ def create_run(
     skill_genome: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     normalized_seed = str(seed or "ROGUE-001").strip() or "ROGUE-001"
+    if skill_genome and skill_genome.get("metadata", {}).get("category") == "finance":
+        archetype_id = "finance"
     archetype = ARCHETYPES.get(archetype_id, ARCHETYPES["browser"])
     mode = RUN_MODES.get(mode_id, RUN_MODES["stable"])
     skill_name = skill_genome.get("name", archetype["name"]) if skill_genome else archetype["name"]
@@ -145,6 +158,7 @@ def create_run(
         "id": f"run-{hash_string(run_hash_input):x}",
         "seed": normalized_seed,
         "archetypeId": archetype["id"],
+        "scenarioId": archetype["id"],
         "baseSkillId": skill_genome.get("id", archetype["id"]) if skill_genome else archetype["id"],
         "baseSkillVersion": skill_genome.get("schemaVersion") if skill_genome else None,
         "baseSkillGenome": deepcopy(skill_genome),
@@ -165,7 +179,7 @@ def create_run(
         "initialWeapons": initial_weapons,
         "mutationIds": [],
         "evolutionIds": [],
-        "map": generate_map(normalized_seed),
+        "map": generate_map(normalized_seed, archetype["id"]),
         "completedNodeIds": [],
         "encounterHistory": [],
         "currentDraft": [],
@@ -310,10 +324,13 @@ def create_mutation_draft(state: dict[str, Any], node: dict[str, Any] | None = N
         f"{state['seed']}|draft|{node['id'] if node else 'free'}|{','.join(state['mutationIds'])}|{state['modeId']}"
     )
     remaining = state["complexityMax"] - state["complexityUsed"]
+    scenario_id = state.get("scenarioId", "browser")
     available = [
         item
         for item in MUTATIONS
         if item["id"] not in state["mutationIds"] and item["complexityCost"] <= remaining
+        and not (scenario_id == "finance" and item["id"] in BROWSER_ONLY_MUTATION_IDS)
+        and not (scenario_id != "finance" and item["id"] in FINANCE_MUTATION_IDS)
     ]
     scored = sorted(
         (

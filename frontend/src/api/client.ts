@@ -1,6 +1,8 @@
 import type {
+  AgentPreset,
   DiscoveryCandidate,
   EvolutionCatalog,
+  FinanceBootstrapResult,
   NormalizerStatus,
   ProviderStatus,
   RunRecord,
@@ -62,6 +64,19 @@ export const importDiscoveryCandidate = (candidate: DiscoveryCandidate) =>
     method: 'POST',
     body: JSON.stringify({ candidate }),
   })
+
+export const bootstrapFinanceSkills = (payload: {
+  maxCommunitySkills?: number
+  sopIds?: string[]
+  autoPromote?: boolean
+} = {}) => request<FinanceBootstrapResult>('/api/scenarios/finance/bootstrap', {
+  method: 'POST',
+  body: JSON.stringify({
+    maxCommunitySkills: payload.maxCommunitySkills ?? 2,
+    sopIds: payload.sopIds,
+    autoPromote: payload.autoPromote ?? true,
+  }),
+})
 
 export const storeSkillGenome = (genome: SkillGenome, sourceId = 'manual') =>
   request<{ skill: SkillRecord }>('/api/skills', {
@@ -129,3 +144,44 @@ export const skipEvolutionMutation = (runId: string, expectedRevision: number) =
   request<RunRecord>(`/api/runs/${encodeURIComponent(runId)}/skip-mutation`, {
     method: 'POST', body: JSON.stringify({ expectedRevision }),
   })
+
+export const createAgentPreset = (runId: string, payload: {
+  expectedRevision: number
+  projectName: string
+  projectDescription: string
+  scenario: string
+}) => request<{ preset: AgentPreset; created: boolean }>(
+  `/api/runs/${encodeURIComponent(runId)}/agent-preset`,
+  { method: 'POST', body: JSON.stringify(payload) },
+)
+
+export const listAgentPresets = () =>
+  request<{ presets: AgentPreset[] }>('/api/agent-presets')
+
+export const getAgentPreset = (presetId: string) =>
+  request<{ preset: AgentPreset }>(`/api/agent-presets/${encodeURIComponent(presetId)}`)
+
+export async function downloadAgentPreset(presetId: string): Promise<void> {
+  const response = await fetch(apiPath(`/api/agent-presets/${encodeURIComponent(presetId)}/export`))
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({})) as ErrorPayload
+    const detail = payload.error
+    if (detail && typeof detail === 'object') {
+      throw new ApiError(
+        detail.message ?? `API ${response.status}`,
+        detail.code ?? `HTTP_${response.status}`,
+        Boolean(detail.retryable),
+        detail.details ?? {},
+      )
+    }
+    throw new ApiError(detail || `API ${response.status}`, `HTTP_${response.status}`)
+  }
+  const blobUrl = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = blobUrl
+  link.download = `${presetId}.json`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(blobUrl)
+}

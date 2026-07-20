@@ -24,9 +24,9 @@ npm start
 
 访问：
 
-- Evolution Run：http://127.0.0.1:4173
-- Skill Discovery：http://127.0.0.1:4173/discovery.html
-- OpenAPI：http://127.0.0.1:4173/api/docs
+- Evolution Run：http://127.0.0.1:5173
+- Skill Discovery：http://127.0.0.1:5173/discovery.html
+- OpenAPI：http://127.0.0.1:5173/api/docs
 
 默认数据库为 `data/rogueskills.db`。GitHub Token 只配置在 Python 后端：
 
@@ -104,11 +104,13 @@ tests/
 ## 当前能力
 
 - Skill Discovery、GitHub 快照、统一排序和风险扫描
+- 金融股票分析场景：社区质量筛选、Qwen SOP 标准化、批量准入和金融 Evolution 地图
 - SOP/Runbook/Checklist → Skill Genome 1.0
 - Quarantine Repository、不可变版本、来源快照和准入评测
 - Initial Library 人工晋升与当前版本校验
 - 服务端权威 Evolution Run、固定 Seed Replay、Mutation 和武器进化
+- Victory Run → 不可变 AgentPreset v0.1、JSON 导出和 Digest 校验 Loader
 - 确定性六用例 Benchmark
 - LangGraph Runtime、Output Evaluator、Mutation Planner 的类型化扩展接口
 
-真实 LLM/Playwright Runtime、Hidden Dataset Worker、Genome JSON Patch 和 Candidate 落库仍属于下一阶段实现范围。
+AgentPreset 当前仍是单 Primary Skill、能力数值模拟产生的静态 Candidate。真实 LLM/Playwright Runtime、Hidden Dataset Worker、Genome JSON Patch 和 ProjectRelease 仍属于下一阶段实现范围。

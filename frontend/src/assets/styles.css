@@ -1846,6 +1846,107 @@ button {
   font: 500 16px var(--mono);
 }
 
+.preset-builder {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid rgba(185, 242, 95, 0.2);
+  background: rgba(185, 242, 95, 0.035);
+  text-align: left;
+}
+
+.preset-heading,
+.preset-saved {
+  display: grid;
+  gap: 4px;
+}
+
+.preset-heading span,
+.preset-saved span {
+  color: var(--lime);
+  font: 600 10px var(--mono);
+  letter-spacing: 0.12em;
+}
+
+.preset-heading strong,
+.preset-saved strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.preset-saved small {
+  color: var(--muted);
+  font: 10px var(--mono);
+}
+
+.preset-builder label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font: 10px var(--mono);
+  letter-spacing: 0.06em;
+}
+
+.preset-builder input,
+.preset-builder textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  outline: none;
+  padding: 9px 10px;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.2);
+  font: 12px var(--sans);
+  resize: vertical;
+}
+
+.preset-builder input:focus,
+.preset-builder textarea:focus {
+  border-color: rgba(185, 242, 95, 0.52);
+}
+
+.preset-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.preset-stats div {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.preset-stats span,
+.preset-warning {
+  color: var(--muted);
+  font: 9px var(--mono);
+}
+
+.preset-stats strong {
+  color: var(--lime);
+  font: 14px var(--mono);
+}
+
+.preset-error {
+  color: var(--red);
+  font-size: 11px;
+}
+
+.preset-warning {
+  margin: 0;
+  color: var(--gold);
+}
+
+.secondary-run-button {
+  margin-top: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  box-shadow: none;
+}
+
 .log-panel {
   margin-top: 16px;
   padding: 18px 20px;

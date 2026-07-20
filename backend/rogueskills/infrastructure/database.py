@@ -116,6 +116,31 @@ class EvolutionRunRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class AgentPresetRow(Base):
+    __tablename__ = "agent_presets"
+    __table_args__ = (
+        UniqueConstraint("run_id"),
+        Index("idx_agent_presets_created", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    run_id: Mapped[str] = mapped_column(
+        String(160), ForeignKey("evolution_runs.id", ondelete="RESTRICT"), nullable=False
+    )
+    base_skill_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("skills.id", ondelete="RESTRICT"), nullable=False
+    )
+    base_skill_version_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("skill_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    project_name: Mapped[str] = mapped_column(Text, nullable=False)
+    scenario: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    digest: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    config_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 def create_database(database_url: str) -> tuple[Engine, sessionmaker[Any]]:
     connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
     engine_options: dict[str, Any] = {"connect_args": connect_args, "future": True}

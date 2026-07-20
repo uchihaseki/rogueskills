@@ -14,22 +14,31 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from rogueskills.adapters.discovery_gateway import DiscoveryGateway
+from rogueskills.adapters.agent_preset_loader import (
+    AgentPresetIntegrityError,
+    load_agent_preset,
+)
 from rogueskills.adapters.llm_material_normalizer import OpenAICompatibleMaterialNormalizer
 from rogueskills.agents.material_normalizer import MaterialNormalizer, UnavailableMaterialNormalizer
 from rogueskills.application.errors import ApplicationError
+from rogueskills.application.finance_bootstrap import FinanceBootstrapService
+from rogueskills.application.preset_service import AgentPresetService
 from rogueskills.application.services import MaterialService, RunService, SkillService
 from rogueskills.domain.benchmark import run_scenario_benchmark
 from rogueskills.domain.catalogs import SEED_SKILLS, SOURCE_CONNECTORS
 from rogueskills.domain.evolution import public_catalog
 from rogueskills.domain.genome import capability_profile_from_genome, validate_skill_genome
 from rogueskills.infrastructure.database import create_database
+from rogueskills.infrastructure.preset_repository import AgentPresetRepository
 from rogueskills.infrastructure.repository import SkillRepository
 from rogueskills.settings import Settings
 
 from .models import (
     ChooseMutationRequest,
     CreateRunRequest,
+    CreateAgentPresetRequest,
     ImportRequest,
+    FinanceBootstrapRequest,
     MaterialConvertRequest,
     PromoteRequest,
     RunRevisionRequest,
@@ -48,8 +57,10 @@ def create_app(
     config = config or Settings()
     engine, sessions = create_database(config.database_url)
     repository = SkillRepository(sessions)
+    preset_repository = AgentPresetRepository(sessions)
     skills = SkillService(repository)
     runs = RunService(repository)
+    presets = AgentPresetService(repository, preset_repository)
     owns_client = http_client is None
     client = http_client or httpx.AsyncClient(
         timeout=httpx.Timeout(20), headers={"User-Agent": "RogueSkills-Discovery/0.2"}
@@ -68,6 +79,12 @@ def create_app(
             else UnavailableMaterialNormalizer()
         )
     materials = MaterialService(material_normalizer)
+    finance = FinanceBootstrapService(
+        gateway=gateway,
+        materials=materials,
+        skills=skills,
+        repository=repository,
+    )
     search_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 
     for seed in SEED_SKILLS:
@@ -97,6 +114,7 @@ def create_app(
     )
     app.state.settings = config
     app.state.repository = repository
+    app.state.preset_repository = preset_repository
 
     @app.middleware("http")
     async def request_context(request: Request, call_next: Any) -> Any:
@@ -199,6 +217,14 @@ def create_app(
         )
         return {"skill": stored, "validation": validate_skill_genome(stored["genome"])}
 
+    @app.post("/api/scenarios/finance/bootstrap")
+    async def bootstrap_finance(payload: FinanceBootstrapRequest) -> dict[str, Any]:
+        return await finance.run(
+            max_community_skills=payload.maxCommunitySkills,
+            sop_ids=payload.sopIds,
+            auto_promote=payload.autoPromote,
+        )
+
     @app.post("/api/materials/convert")
     async def convert_material(payload: MaterialConvertRequest) -> dict[str, Any]:
         genome, normalization = await materials.convert(
@@ -293,6 +319,50 @@ def create_app(
     @app.post("/api/runs/{run_id}/skip-mutation")
     def skip_evolution_mutation(run_id: str, payload: RunRevisionRequest) -> dict[str, Any]:
         return runs.skip_mutation(run_id, payload.expectedRevision)
+
+    @app.post("/api/runs/{run_id}/agent-preset", status_code=201)
+    def create_agent_preset(
+        run_id: str, payload: CreateAgentPresetRequest
+    ) -> dict[str, Any]:
+        preset, created = presets.create(
+            run_id=run_id,
+            expected_revision=payload.expectedRevision,
+            project_name=payload.projectName,
+            project_description=payload.projectDescription,
+            scenario=payload.scenario,
+        )
+        return {"preset": preset, "created": created}
+
+    @app.get("/api/agent-presets")
+    def list_agent_presets() -> dict[str, Any]:
+        return {"presets": preset_repository.list()}
+
+    @app.get("/api/agent-presets/{preset_id}")
+    def get_agent_preset(preset_id: str) -> dict[str, Any]:
+        return {"preset": presets.get(preset_id)}
+
+    @app.get("/api/agent-presets/{preset_id}/export")
+    def export_agent_preset(preset_id: str) -> JSONResponse:
+        preset = presets.get(preset_id)
+        return JSONResponse(
+            content=preset,
+            headers={
+                "Content-Disposition": f'attachment; filename="{preset_id}.json"',
+                "Cache-Control": "no-store",
+            },
+        )
+
+    @app.get("/api/agent-presets/{preset_id}/runtime-config")
+    def agent_preset_runtime_config(preset_id: str) -> dict[str, Any]:
+        try:
+            runtime_config = load_agent_preset(presets.get(preset_id))
+        except AgentPresetIntegrityError as error:
+            raise ApplicationError(
+                "AGENT_PRESET_INTEGRITY_FAILED",
+                "AgentPreset 内容校验失败。",
+                status_code=409,
+            ) from error
+        return {"runtimeConfig": runtime_config}
 
     @app.post("/api/benchmark/scenario")
     def scenario_preview(payload: dict[str, Any]) -> dict[str, Any]:

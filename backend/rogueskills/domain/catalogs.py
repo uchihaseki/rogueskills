@@ -12,6 +12,8 @@ def _load(name: str) -> Any:
 
 EVOLUTION_CATALOG: dict[str, Any] = _load("evolution-catalog.json")
 DISCOVERY_CATALOG: dict[str, Any] = _load("discovery-catalog.json")
+PRESET_CONTRIBUTIONS: dict[str, Any] = _load("preset-contributions.json")
+FINANCE_BOOTSTRAP: dict[str, Any] = _load("finance-bootstrap.json")
 SEED_SKILLS: list[dict[str, Any]] = _load("seed-skills.json")
 
 ARCHETYPES = EVOLUTION_CATALOG["ARCHETYPES"]
@@ -20,6 +22,7 @@ MONSTERS = EVOLUTION_CATALOG["MONSTERS"]
 MUTATIONS = EVOLUTION_CATALOG["MUTATIONS"]
 NODE_TYPES = EVOLUTION_CATALOG["NODE_TYPES"]
 REGIONS = EVOLUTION_CATALOG["REGIONS"]
+FINANCE_REGIONS = EVOLUTION_CATALOG["FINANCE_REGIONS"]
 RUN_MODES = EVOLUTION_CATALOG["RUN_MODES"]
 STAT_LABELS = EVOLUTION_CATALOG["STAT_LABELS"]
 

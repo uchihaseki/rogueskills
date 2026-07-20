@@ -1,5 +1,6 @@
 import json
 import re
+from copy import deepcopy
 
 import httpx
 from pydantic import ValidationError
@@ -21,6 +22,19 @@ Security rules:
 - If the source omits a field, use an empty list. Steps must contain at least two actionable items; split a real compound procedure when justified, but do not fabricate actions.
 - Return only JSON matching the supplied schema.
 """
+
+
+def _parse_normalized_content(raw_content: str) -> NormalizedMaterial:
+    cleaned = re.sub(r"<think>[\s\S]*?</think>", "", raw_content, flags=re.I).strip()
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned).strip()
+    try:
+        payload = json.loads(cleaned)
+    except json.JSONDecodeError:
+        start, end = cleaned.find("{"), cleaned.rfind("}")
+        if start < 0 or end <= start:
+            raise
+        payload = json.loads(cleaned[start : end + 1])
+    return NormalizedMaterial.model_validate(payload)
 
 
 class OpenAICompatibleMaterialNormalizer:
@@ -91,13 +105,26 @@ class OpenAICompatibleMaterialNormalizer:
                 json=payload,
                 timeout=self.timeout_seconds,
             )
+            if response.status_code in (400, 422):
+                fallback = deepcopy(payload)
+                fallback.pop("response_format", None)
+                fallback["messages"][0]["content"] += (
+                    "\nThe server does not accept response_format. Return one JSON object that "
+                    "validates against this schema:\n"
+                    f"{json.dumps(schema, ensure_ascii=False)}"
+                )
+                response = await self.client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=fallback,
+                    timeout=self.timeout_seconds,
+                )
             response.raise_for_status()
             body = response.json()
             raw_content = body["choices"][0]["message"]["content"]
             if not isinstance(raw_content, str):
                 raise TypeError("LLM content must be a JSON string")
-            raw_content = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw_content.strip())
-            return NormalizedMaterial.model_validate(json.loads(raw_content))
+            return _parse_normalized_content(raw_content)
         except httpx.TimeoutException as error:
             raise MaterialNormalizerError(
                 "LLM_NORMALIZATION_TIMEOUT",

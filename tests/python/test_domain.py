@@ -1,7 +1,10 @@
 import ast
 import unittest
+from copy import deepcopy
+from datetime import UTC, datetime
 from pathlib import Path
 
+from rogueskills.adapters.agent_preset_loader import AgentPresetIntegrityError, load_agent_preset
 from rogueskills.domain.benchmark import run_admission_benchmark, run_scenario_benchmark
 from rogueskills.domain.catalogs import SEED_SKILLS
 from rogueskills.domain.discovery import (
@@ -11,6 +14,7 @@ from rogueskills.domain.discovery import (
     search_local_index,
 )
 from rogueskills.domain.evolution import (
+    calculate_objective_score,
     choose_mutation,
     create_run,
     generate_map,
@@ -19,6 +23,8 @@ from rogueskills.domain.evolution import (
     select_node,
 )
 from rogueskills.domain.genome import validate_skill_genome
+from rogueskills.domain.finance import deep_filter_finance_candidate, select_finance_candidates
+from rogueskills.domain.presets import InvalidAgentPreset, compile_agent_preset
 
 
 class DomainParityTests(unittest.TestCase):
@@ -70,6 +76,42 @@ class DomainParityTests(unittest.TestCase):
         self.assertEqual("high", risk["level"])
         self.assertGreaterEqual(len(risk["reasons"]), 2)
 
+    def test_finance_candidates_require_quality_license_and_content_evidence(self) -> None:
+        strong = {
+            "id": "finance-strong",
+            "name": "Community Equity Research Skill",
+            "summary": "Stock fundamental analysis, earnings and valuation workflow.",
+            "sourceId": "github",
+            "license": "MIT",
+            "tags": ["stock", "valuation", "finance"],
+            "signals": {"stars": 250},
+            "risk": {"level": "low"},
+            "ranking": {"total": 82, "relevance": 76, "quality": 80, "trust": 70},
+        }
+        weak = {
+            **strong,
+            "id": "finance-weak",
+            "name": "Unknown Finance Notes",
+            "license": "unknown",
+            "signals": {"stars": 0},
+        }
+        selected, rejected = select_finance_candidates([weak, strong], pool_size=3)
+        self.assertEqual(["finance-strong"], [item["id"] for item in selected])
+        self.assertEqual("finance-weak", rejected[0]["candidateId"])
+        self.assertIn("许可证未知", rejected[0]["reasons"])
+
+        hydrated = {
+            **selected[0],
+            "content": (
+                "This stock equity research workflow analyzes financial statements, earnings, "
+                "cash flow, fundamental drivers, valuation scenarios, and investment risks. " * 5
+            ),
+            "snapshot": {"status": "captured"},
+        }
+        decision = deep_filter_finance_candidate(hydrated)
+        self.assertTrue(decision["eligible"])
+        self.assertGreaterEqual(len(decision["matchedTerms"]), 2)
+
     def test_map_and_benchmark_match_js_baseline(self) -> None:
         first = generate_map("DAILY-0714")
         self.assertEqual(first, generate_map("DAILY-0714"))
@@ -113,6 +155,120 @@ class DomainParityTests(unittest.TestCase):
             boss = get_current_layer(run)[0]
             run = resolve_current_node(select_node(run, boss["id"]))
         self.assertEqual("victory", run["status"])
+
+    def test_victory_run_compiles_into_loadable_agent_preset(self) -> None:
+        genome = SEED_SKILLS[0]
+        run = create_run(seed="PRESET-001", skill_genome=genome)
+        run.update(
+            {
+                "status": "victory",
+                "phase": "ended",
+                "mutationIds": [
+                    "screenshot_ocr",
+                    "schema_validator",
+                    "retry_guard",
+                    "injection_shield",
+                ],
+                "evolutionIds": ["adaptive_web_extractor"],
+                "encounterHistory": [
+                    {"passed": True, "benchmarkId": "scenario-runtime-v1"},
+                    {"passed": True, "benchmarkId": "scenario-runtime-v1"},
+                ],
+            }
+        )
+        preset = compile_agent_preset(
+            run=run,
+            run_revision=12,
+            base_skill_version_id=f"{genome['id']}@1",
+            base_skill_genome=genome,
+            project_name="商品采集 Agent",
+            project_description="从商品页面提取并校验结构化数据。",
+            scenario="电商商品信息提取",
+            clock=lambda: datetime(2026, 7, 20, tzinfo=UTC),
+        )
+        self.assertEqual("candidate", preset["status"])
+        self.assertFalse(preset["evaluationEvidence"]["runtimeVerified"])
+        self.assertIn("OCR", preset["tools"])
+        self.assertTrue(preset["rules"]["retry"])
+        self.assertTrue(preset["rules"]["fallback"])
+        self.assertTrue(preset["rules"]["outputValidation"])
+        self.assertIn("Runtime configuration additions", preset["agent"]["instruction"])
+
+        loaded = load_agent_preset(preset)
+        self.assertEqual(preset["id"], loaded["presetId"])
+        self.assertIn("Workflow:", loaded["developerPrompt"])
+        self.assertEqual(preset["tools"], loaded["tools"])
+
+        tampered = deepcopy(preset)
+        tampered["project"]["name"] = "Tampered"
+        with self.assertRaises(AgentPresetIntegrityError):
+            load_agent_preset(tampered)
+
+    def test_active_run_cannot_compile_agent_preset(self) -> None:
+        genome = SEED_SKILLS[0]
+        with self.assertRaises(InvalidAgentPreset):
+            compile_agent_preset(
+                run=create_run(seed="PRESET-ACTIVE", skill_genome=genome),
+                run_revision=1,
+                base_skill_version_id=f"{genome['id']}@1",
+                base_skill_genome=genome,
+                project_name="Active Agent",
+                project_description="Should not compile.",
+                scenario="test",
+            )
+
+    def test_documented_agent_preset_paths_reach_victory(self) -> None:
+        cases = [
+            (
+                "PRESET-STABLE-01",
+                "stable",
+                86.0,
+                [
+                    ("a1-l1-n2", "schema_validator"),
+                    ("a1-l2-n2", "visual_locator"),
+                    ("a1-l3-n1", "semantic_locator"),
+                    ("a1-l4-n1", None),
+                    ("a2-l1-n1", "injection_shield"),
+                    ("a2-l2-n2", "permission_guard"),
+                    ("a2-l3-n2", "error_classifier"),
+                    ("a2-l4-n1", None),
+                    ("a3-l1-n1", "cache_layer"),
+                    ("a3-l2-n1", "prompt_compression"),
+                    ("a3-l3-n2", "fallback_tool"),
+                    ("a3-l4-n1", None),
+                ],
+            ),
+            (
+                "PRESET-EFFICIENT-01",
+                "efficient",
+                85.0,
+                [
+                    ("a1-l1-n2", "cache_layer"),
+                    ("a1-l2-n1", "visual_locator"),
+                    ("a1-l3-n1", "schema_validator"),
+                    ("a1-l4-n1", None),
+                    ("a2-l1-n2", "budget_guard"),
+                    ("a2-l2-n1", "early_exit"),
+                    ("a2-l3-n2", "error_classifier"),
+                    ("a2-l4-n1", None),
+                    ("a3-l1-n1", "permission_guard"),
+                    ("a3-l2-n1", "injection_shield"),
+                    ("a3-l3-n1", "semantic_locator"),
+                    ("a3-l4-n1", None),
+                ],
+            ),
+        ]
+        for seed, mode_id, expected_score, path in cases:
+            with self.subTest(seed=seed):
+                run = create_run(seed=seed, mode_id=mode_id, skill_genome=SEED_SKILLS[0])
+                for node_id, mutation_id in path:
+                    self.assertIn(node_id, [node["id"] for node in get_current_layer(run)])
+                    run = resolve_current_node(select_node(run, node_id))
+                    if mutation_id:
+                        self.assertIn(mutation_id, run["currentDraft"])
+                        run = choose_mutation(run, mutation_id)
+                self.assertEqual("victory", run["status"])
+                self.assertEqual(expected_score, calculate_objective_score(run))
 
     def test_domain_package_has_no_infrastructure_imports(self) -> None:
         domain = Path(__file__).parents[2] / "backend" / "rogueskills" / "domain"

@@ -212,8 +212,11 @@ export interface EvolutionRun {
   seed: string
   modeId: string
   archetypeId: string
+  scenarioId?: string
   baseSkillId: string
   skillName?: string
+  skillRole?: string
+  skillDescription?: string
   status: string
   phase: 'choose_node' | 'encounter' | 'reward' | 'ended'
   actIndex: number
@@ -239,6 +242,118 @@ export interface RunRecord {
   run: EvolutionRun
   revision: number
   baseSkillVersionId?: string
+}
+
+export interface AgentPresetProject {
+  name: string
+  description: string
+  scenario: string
+}
+
+export interface AgentPresetWorkflowStep {
+  id: string
+  order: number
+  instruction: string
+  tool?: string | null
+  source: string
+}
+
+export interface AgentPreset {
+  schemaVersion: '0.1.0'
+  id: string
+  version: 1
+  status: 'candidate'
+  createdAt: string
+  project: AgentPresetProject
+  sourceRun: {
+    runId: string
+    runRevision: number
+    seed: string
+    modeId: string
+    baseSkillId: string
+    baseSkillVersionId: string
+    mutationIds: string[]
+    evolutionIds: string[]
+  }
+  agent: { role: string; objective: string; instruction: string }
+  primarySkill: {
+    role: 'primary'
+    skillId: string
+    skillVersionId: string
+    genome: SkillGenome
+  }
+  workflow: AgentPresetWorkflowStep[]
+  tools: string[]
+  rules: {
+    constraints: string[]
+    retry: string[]
+    fallback: string[]
+    outputValidation: string[]
+  }
+  runtimeDefaults: {
+    maxTokens: number
+    maxToolCalls: number
+    timeoutMs: number
+    priority: string
+    enforceBudget: boolean
+  }
+  evaluationEvidence: {
+    mode: 'capability-simulation-v1'
+    runtimeVerified: false
+    sourceRunStatus: 'victory'
+    objectiveScore: number
+    encountersPassed: number
+    encounterTotal: number
+    finalStats: Dictionary<number>
+    benchmarkIds: string[]
+  }
+  limitations: string[]
+  digest: string
+}
+
+export interface FinanceBootstrapSkillResult {
+  skillId?: string
+  skillVersionId?: string
+  name?: string
+  title?: string
+  sopId?: string
+  status: string
+  action?: string
+  evaluation?: { score?: number; passed?: boolean; [key: string]: unknown } | null
+  normalization?: NormalizerStatus
+  candidate?: {
+    id: string
+    name: string
+    url?: string
+    license: string
+    stars: number
+    financeRanking?: {
+      score: number
+      matchedTerms: string[]
+      [key: string]: unknown
+    }
+  }
+  error?: { code: string; message: string }
+}
+
+export interface FinanceBootstrapResult {
+  scenario: { id: string; name: string; description: string }
+  model: NormalizerStatus
+  queries: string[]
+  providerStatus: ProviderStatus[]
+  summary: {
+    discovered: number
+    metadataSelected: number
+    hydrated: number
+    communityStored: number
+    sopsProcessed: number
+    initialSkills: number
+    rejected: number
+  }
+  community: FinanceBootstrapSkillResult[]
+  sops: FinanceBootstrapSkillResult[]
+  rejected: Array<{ stage: string; candidateId?: string; name?: string; reasons: string[] }>
+  initialSkillIds: string[]
 }
 
 export interface EvolutionCatalog {

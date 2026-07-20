@@ -88,7 +88,7 @@ watch(() => props.controller.selectedSkillId, animateStats)
           </div>
           <template v-if="controller.selectedSkill">
             <div class="archetype-heading">
-              <div class="role-orb"><span>BR</span></div>
+              <div class="role-orb"><span>{{ controller.selectedSkill.genome.metadata.category === 'finance' ? 'FI' : 'BR' }}</span></div>
               <div>
                 <h2>{{ controller.selectedSkill.genome.name }}</h2>
                 <p>{{ controller.selectedSkill.genome.metadata.category }}</p>

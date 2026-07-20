@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { EvolutionController } from '@/composables/useEvolutionRun'
+import type { Evolution, Mutation } from '@/types/domain'
 
 const props = defineProps<{ controller: EvolutionController }>()
 const run = computed(() => props.controller.run!)
-const mutations = computed(() => run.value.mutationIds.map(props.controller.mutationById).filter(Boolean))
-const evolutions = computed(() => run.value.evolutionIds.map(props.controller.evolutionById).filter(Boolean))
+const mutations = computed(() => run.value.mutationIds
+  .map(props.controller.mutationById)
+  .filter((item): item is Mutation => Boolean(item)))
+const evolutions = computed(() => run.value.evolutionIds
+  .map(props.controller.evolutionById)
+  .filter((item): item is Evolution => Boolean(item)))
 const recipes = computed(() => props.controller.evolutionProgress(run.value)
   .filter((item) => !item.unlocked)
   .sort((left, right) => right.progress / right.total - left.progress / left.total)

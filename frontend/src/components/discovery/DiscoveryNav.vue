@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DiscoveryController, DiscoveryView } from '@/composables/useDiscovery'
 defineProps<{ controller: DiscoveryController }>()
-const tabs: Array<[DiscoveryView, string]> = [['search', '统一搜索'], ['convert', 'SOP 转换'], ['library', 'Skill Repository']]
+const tabs: Array<[DiscoveryView, string]> = [['search', '统一搜索'], ['finance', '金融场景'], ['convert', 'SOP 转换'], ['library', 'Skill Repository']]
 </script>
 
 <template>

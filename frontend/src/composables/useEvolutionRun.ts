@@ -1,7 +1,9 @@
 import { computed, reactive, ref, watch } from 'vue'
 import {
   chooseEvolutionMutation,
+  createAgentPreset,
   createEvolutionRun,
+  downloadAgentPreset,
   getEvolutionCatalog,
   getEvolutionRun,
   listInitialSkills,
@@ -10,6 +12,7 @@ import {
   skipEvolutionMutation,
 } from '@/api/client'
 import type {
+  AgentPreset,
   Evolution,
   EvolutionCatalog,
   EvolutionRun,
@@ -48,6 +51,13 @@ export function useEvolutionRun() {
   const loadingError = ref('')
   const seed = ref('ROGUE-0714')
   const selectedModeId = ref('')
+  const agentPreset = ref<AgentPreset | null>(null)
+  const presetPending = ref(false)
+  const presetError = ref('')
+  const presetProjectName = ref('')
+  const presetProjectDescription = ref('')
+  const presetScenario = ref('')
+  const presetRunId = ref('')
   const catalog = reactive<EvolutionCatalog>({ ...emptyCatalog })
 
   const selectedSkill = computed(() =>
@@ -67,6 +77,15 @@ export function useEvolutionRun() {
     document.title = value
       ? `RogueSkills · ${value.seed} · Act ${value.actIndex + 1}`
       : 'RogueSkills · 新建 Evolution Run'
+    if (value?.status === 'victory' && presetRunId.value !== value.id) {
+      agentPreset.value = null
+      presetError.value = ''
+      presetRunId.value = value.id
+      presetProjectName.value = `${value.skillName ?? 'RogueSkills'} Agent`
+      presetProjectDescription.value = value.skillDescription
+        ?? `基于 ${value.skillName ?? value.baseSkillId} 构建的候选业务 Agent 配置。`
+      presetScenario.value = value.skillRole ?? 'browser-extraction'
+    }
   }, { immediate: true })
 
   function persistRun(): void {
@@ -234,11 +253,46 @@ export function useEvolutionRun() {
     return transition(() => skipEvolutionMutation(run.value!.id, revision.value!))
   }
 
+  async function saveAgentPreset(): Promise<void> {
+    if (
+      !run.value
+      || run.value.status !== 'victory'
+      || revision.value == null
+      || presetPending.value
+    ) return
+    presetPending.value = true
+    presetError.value = ''
+    try {
+      const result = await createAgentPreset(run.value.id, {
+        expectedRevision: revision.value,
+        projectName: presetProjectName.value,
+        projectDescription: presetProjectDescription.value,
+        scenario: presetScenario.value,
+      })
+      agentPreset.value = result.preset
+    } catch (error) {
+      presetError.value = error instanceof Error ? error.message : String(error)
+    } finally {
+      presetPending.value = false
+    }
+  }
+
+  async function exportAgentPreset(): Promise<void> {
+    if (!agentPreset.value) return
+    try {
+      await downloadAgentPreset(agentPreset.value.id)
+    } catch (error) {
+      report(error, 'AGENT_PRESET_EXPORT_FAILED')
+    }
+  }
+
   return reactive({
-    actionPending, catalog, chooseMutation, continueRun, currentLayer, currentRegion,
+    actionPending, agentPreset, catalog, chooseMutation, continueRun, currentLayer, currentRegion,
+    exportAgentPreset,
     evolutionById, evolutionProgress, initialSkills, initialize, libraryState, loadingError,
     MAX_STABILITY, monsterById, mutationById, nodeState, objectiveScore, randomizeSeed,
-    resolveNode, retrySeed, returnToSetup, run, savedRun, seed, selectNode, selectedModeId,
+    presetError, presetPending, presetProjectDescription, presetProjectName, presetScenario,
+    resolveNode, retrySeed, returnToSetup, run, savedRun, saveAgentPreset, seed, selectNode, selectedModeId,
     selectedNode, selectedSkill, selectedSkillId, skipMutation, startRun,
   })
 }
