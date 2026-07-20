@@ -87,7 +87,7 @@ watch(() => props.controller.selectedSkillId, animateStats)
           </div>
           <template v-if="controller.selectedSkill">
             <div class="archetype-heading">
-              <div class="role-orb"><span>BR</span></div>
+              <div class="role-orb"><span>{{ controller.selectedSkill.genome.metadata.category === 'finance' ? 'FI' : 'BR' }}</span></div>
               <div>
                 <h2>{{ controller.selectedSkill.genome.name }}</h2>
                 <p>{{ controller.selectedSkill.genome.metadata.category }}</p>
@@ -109,12 +109,33 @@ watch(() => props.controller.selectedSkillId, animateStats)
         </article>
 
         <article class="setup-card run-config-card">
-          <div class="card-kicker">02 · 定义本局目标</div>
+          <div class="card-kicker">02 · 定义自动进化目标</div>
           <div class="mode-options">
             <label v-for="mode in controller.catalog.runModes" :key="mode.id" class="mode-option">
               <input v-model="controller.selectedModeId" type="radio" name="mode" :value="mode.id">
               <span class="mode-radio"></span><span class="mode-copy"><strong>{{ mode.name }}</strong><small>{{ mode.description }}</small></span>
             </label>
+          </div>
+          <div class="monster-target-block">
+            <div class="target-heading">
+              <div><span>挑战怪物</span><strong>选择要重点攻克的失败模式</strong></div>
+              <b>{{ controller.selectedMonsterIds.length }} SELECTED</b>
+            </div>
+            <div class="monster-target-list">
+              <button
+                v-for="monster in controller.availableMonsters"
+                :key="monster.id"
+                class="monster-target"
+                :class="{ selected: controller.selectedMonsterIds.includes(monster.id) }"
+                :aria-pressed="controller.selectedMonsterIds.includes(monster.id)"
+                @click="controller.toggleMonster(monster.id)"
+              >
+                <span>{{ monster.regionName }}</span>
+                <strong>{{ monster.name }}</strong>
+                <small>{{ monster.failureMode }}</small>
+              </button>
+            </div>
+            <p>自动规划会优先经过所选怪物，并自动处理其余路线、Mutation 与隐藏验收。</p>
           </div>
           <div class="seed-block">
             <label for="run-seed">地图 Seed</label>
@@ -124,7 +145,8 @@ watch(() => props.controller.selectedSkillId, animateStats)
             </div>
             <p>相同 Seed 会生成相同地图；相同构筑也会得到相同评估。</p>
           </div>
-          <button class="primary-button large" :disabled="controller.actionPending" @click="controller.startRun()"><span>生成 Evolution Run</span><b>→</b></button>
+          <button class="primary-button large" :disabled="controller.actionPending || !controller.selectedMonsterIds.length" @click="controller.startRun()"><span>{{ controller.actionPending ? '正在创建自动流程…' : '开始完整自动进化' }}</span><b>→</b></button>
+          <p class="auto-run-note">一次启动 · 自动 Benchmark · 自动 Mutation · 胜利后生成项目产物</p>
           <button v-if="controller.savedRun" class="secondary-button continue-button" @click="controller.continueRun">
             继续上次 Run · 第 {{ controller.savedRun.actIndex + 1 }} 幕 · {{ controller.savedRun.seed }}
           </button>

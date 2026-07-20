@@ -1,15 +1,19 @@
 import { computed, reactive, ref, watch } from 'vue'
 import {
   chooseEvolutionMutation,
+  createAgentPreset,
   createEvolutionRun,
+  downloadAgentPreset,
   getEvolutionCatalog,
   getEvolutionRun,
   listInitialSkills,
   resolveEvolutionNode,
   selectEvolutionNode,
   skipEvolutionMutation,
+  startAutomaticEvolution,
 } from '@/api/client'
 import type {
+  AgentPreset,
   Evolution,
   EvolutionCatalog,
   EvolutionRun,
@@ -33,8 +37,10 @@ interface SavedRun {
 }
 
 const emptyCatalog: EvolutionCatalog = {
-  archetypes: {}, evolutions: [], monsters: {}, mutations: [], nodeTypes: {}, runModes: {}, statLabels: {},
+  archetypes: {}, evolutions: [], monsters: {}, scenarioMonsters: {}, mutations: [], nodeTypes: {}, runModes: {}, statLabels: {},
 }
+
+const AUTO_ADVANCE_INTERVAL_MS = 420
 
 export function useEvolutionRun() {
   const savedRun = ref<SavedRun | null>(loadJson<SavedRun | null>(STORAGE_KEY, null))
@@ -48,11 +54,25 @@ export function useEvolutionRun() {
   const loadingError = ref('')
   const seed = ref('ROGUE-0714')
   const selectedModeId = ref('')
+  const selectedMonsterIds = ref<string[]>([])
+  const completionVisible = ref(false)
+  const agentPreset = ref<AgentPreset | null>(null)
+  const presetPending = ref(false)
+  const presetError = ref('')
+  const presetProjectName = ref('')
+  const presetProjectDescription = ref('')
+  const presetScenario = ref('')
+  const presetRunId = ref('')
   const catalog = reactive<EvolutionCatalog>({ ...emptyCatalog })
+  let autoAdvanceTimer: number | null = null
 
   const selectedSkill = computed(() =>
     initialSkills.value.find((skill) => skill.id === selectedSkillId.value) ?? initialSkills.value[0] ?? null,
   )
+  const selectedScenarioId = computed(() =>
+    selectedSkill.value?.genome.metadata.category === 'finance' ? 'finance' : 'browser',
+  )
+  const availableMonsters = computed(() => catalog.scenarioMonsters[selectedScenarioId.value] ?? [])
   const currentRegion = computed(() => {
     if (!run.value) return null
     return run.value.map[run.value.actIndex] ?? run.value.map.at(-1) ?? null
@@ -67,7 +87,33 @@ export function useEvolutionRun() {
     document.title = value
       ? `RogueSkills · ${value.seed} · Act ${value.actIndex + 1}`
       : 'RogueSkills · 新建 Evolution Run'
+    if (value?.status === 'victory' && presetRunId.value !== value.id) {
+      if (agentPreset.value?.sourceRun.runId !== value.id) agentPreset.value = null
+      presetError.value = ''
+      presetRunId.value = value.id
+      presetProjectName.value = `${value.skillName ?? 'RogueSkills'} Agent`
+      presetProjectDescription.value = value.skillDescription
+        ?? `基于 ${value.skillName ?? value.baseSkillId} 构建的候选业务 Agent 配置。`
+      presetScenario.value = value.skillRole ?? 'browser-extraction'
+    }
   }, { immediate: true })
+
+  watch([selectedScenarioId, availableMonsters], () => {
+    const availableIds = new Set(availableMonsters.value.map((monster) => monster.id))
+    const current = selectedMonsterIds.value.filter((id) => availableIds.has(id))
+    if (current.length) {
+      selectedMonsterIds.value = current
+      return
+    }
+    const regions = new Set<string>()
+    selectedMonsterIds.value = availableMonsters.value
+      .filter((monster) => {
+        if (regions.has(monster.regionId)) return false
+        regions.add(monster.regionId)
+        return true
+      })
+      .map((monster) => monster.id)
+  })
 
   function persistRun(): void {
     if (!run.value || revision.value == null) return
@@ -82,9 +128,36 @@ export function useEvolutionRun() {
   }
 
   function acceptRunRecord(record: RunRecord): void {
+    if (record.artifact !== undefined) agentPreset.value = record.artifact
     run.value = record.run
     revision.value = record.revision
     persistRun()
+  }
+
+  function stopAutoAdvance(): void {
+    if (autoAdvanceTimer != null) window.clearTimeout(autoAdvanceTimer)
+    autoAdvanceTimer = null
+  }
+
+  function scheduleAutoAdvance(delay = AUTO_ADVANCE_INTERVAL_MS): void {
+    stopAutoAdvance()
+    if (run.value?.automation?.status !== 'running') return
+    autoAdvanceTimer = window.setTimeout(() => { void pollAutoRun() }, delay)
+  }
+
+  async function pollAutoRun(): Promise<void> {
+    if (!run.value || revision.value == null || run.value.automation?.status !== 'running') return
+    try {
+      const record = await getEvolutionRun(run.value.id)
+      acceptRunRecord(record)
+      if (record.run.automation?.status === 'running') {
+        scheduleAutoAdvance()
+      } else {
+        completionVisible.value = true
+      }
+    } catch (error) {
+      report(error, 'AUTO_RUN_FAILED')
+    }
   }
 
   function report(error: unknown, fallback: string): void {
@@ -122,13 +195,29 @@ export function useEvolutionRun() {
   async function startRun(overrideSeed?: string): Promise<void> {
     const skill = selectedSkill.value
     if (!skill || actionPending.value || !selectedModeId.value) return
+    if (!selectedMonsterIds.value.length) {
+      window.alert('请至少选择一个挑战怪物。')
+      return
+    }
     actionPending.value = true
     try {
-      acceptRunRecord(await createEvolutionRun({
+      agentPreset.value = null
+      presetRunId.value = ''
+      const created = await createEvolutionRun({
         seed: overrideSeed ?? seed.value,
         modeId: selectedModeId.value,
         skillId: skill.id,
-      }))
+      })
+      const started = await startAutomaticEvolution(created.run.id, {
+        expectedRevision: created.revision,
+        selectedMonsterIds: selectedMonsterIds.value,
+        projectName: `${skill.genome.name} Evolution Project`,
+        projectDescription: skill.genome.description,
+        scenario: skill.genome.metadata.category,
+      })
+      acceptRunRecord(started)
+      completionVisible.value = false
+      scheduleAutoAdvance(120)
     } catch (error) {
       report(error, 'RUN_CREATE_FAILED')
     } finally {
@@ -140,6 +229,7 @@ export function useEvolutionRun() {
     if (!savedRun.value) return
     try {
       acceptRunRecord(await getEvolutionRun(savedRun.value.id))
+      scheduleAutoAdvance(120)
     } catch (error) {
       localStorage.removeItem(STORAGE_KEY)
       savedRun.value = null
@@ -150,23 +240,21 @@ export function useEvolutionRun() {
   async function retrySeed(): Promise<void> {
     if (!run.value || actionPending.value) return
     const current = run.value
-    actionPending.value = true
-    try {
-      acceptRunRecord(await createEvolutionRun({
-        seed: current.seed,
-        modeId: current.modeId,
-        skillId: current.baseSkillId,
-      }))
-    } catch (error) {
-      report(error, 'RUN_CREATE_FAILED')
-    } finally {
-      actionPending.value = false
-    }
+    const automatedTargets = current.automation?.selectedMonsterIds
+    if (automatedTargets?.length) selectedMonsterIds.value = [...automatedTargets]
+    seed.value = current.seed
+    selectedModeId.value = current.modeId
+    selectedSkillId.value = current.baseSkillId
+    run.value = null
+    revision.value = null
+    await startRun(current.seed)
   }
 
   function returnToSetup(): void {
+    stopAutoAdvance()
     run.value = null
     revision.value = null
+    completionVisible.value = false
   }
 
   function randomizeSeed(): void {
@@ -213,6 +301,7 @@ export function useEvolutionRun() {
     if (state.completedNodeIds.includes(node.id)) return 'completed'
     if (state.selectedNodeId === node.id) return 'selected'
     if (node.layer < state.layerIndex) return 'skipped'
+    if (state.automation?.status === 'running') return 'locked'
     if (node.layer === state.layerIndex && state.phase === 'choose_node' && state.status === 'active') return 'available'
     return 'locked'
   }
@@ -234,12 +323,63 @@ export function useEvolutionRun() {
     return transition(() => skipEvolutionMutation(run.value!.id, revision.value!))
   }
 
+  function toggleMonster(monsterId: string): void {
+    selectedMonsterIds.value = selectedMonsterIds.value.includes(monsterId)
+      ? selectedMonsterIds.value.filter((id) => id !== monsterId)
+      : [...selectedMonsterIds.value, monsterId]
+  }
+
+  function closeCompletion(): void {
+    completionVisible.value = false
+  }
+
+  function dispose(): void {
+    stopAutoAdvance()
+  }
+
+  async function saveAgentPreset(): Promise<void> {
+    if (
+      !run.value
+      || run.value.status !== 'victory'
+      || revision.value == null
+      || presetPending.value
+    ) return
+    presetPending.value = true
+    presetError.value = ''
+    try {
+      const result = await createAgentPreset(run.value.id, {
+        expectedRevision: revision.value,
+        projectName: presetProjectName.value,
+        projectDescription: presetProjectDescription.value,
+        scenario: presetScenario.value,
+      })
+      agentPreset.value = result.preset
+    } catch (error) {
+      presetError.value = error instanceof Error ? error.message : String(error)
+    } finally {
+      presetPending.value = false
+    }
+  }
+
+  async function exportAgentPreset(): Promise<void> {
+    if (!agentPreset.value) return
+    try {
+      await downloadAgentPreset(agentPreset.value.id)
+    } catch (error) {
+      report(error, 'AGENT_PRESET_EXPORT_FAILED')
+    }
+  }
+
   return reactive({
-    actionPending, catalog, chooseMutation, continueRun, currentLayer, currentRegion,
+    actionPending, agentPreset, availableMonsters, catalog, chooseMutation, closeCompletion,
+    completionVisible, continueRun, currentLayer, currentRegion, dispose,
+    exportAgentPreset,
     evolutionById, evolutionProgress, initialSkills, initialize, libraryState, loadingError,
     MAX_STABILITY, monsterById, mutationById, nodeState, objectiveScore, randomizeSeed,
-    resolveNode, retrySeed, returnToSetup, run, savedRun, seed, selectNode, selectedModeId,
-    selectedNode, selectedSkill, selectedSkillId, skipMutation, startRun,
+    presetError, presetPending, presetProjectDescription, presetProjectName, presetScenario,
+    resolveNode, retrySeed, returnToSetup, run, savedRun, saveAgentPreset, seed, selectNode, selectedModeId,
+    selectedMonsterIds, selectedNode, selectedScenarioId, selectedSkill, selectedSkillId,
+    skipMutation, startRun, toggleMonster,
   })
 }
 

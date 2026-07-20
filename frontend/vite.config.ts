@@ -12,8 +12,9 @@ export default defineConfig({
     vueDevTools(),
   ],
   server: {
+    port: 5174,
     proxy: {
-      '/api': 'http://127.0.0.1:4173',
+      '/api': 'http://127.0.0.1:5173',
     },
   },
   resolve: {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import html2canvas from 'html2canvas'
 import { useEvolutionRun } from '@/composables/useEvolutionRun'
 import CharacterSelectView from '@/components/evolution/CharacterSelectView.vue'
@@ -80,6 +80,7 @@ watch(() => controller.run, (run, previousRun) => {
 })
 
 onMounted(controller.initialize)
+onBeforeUnmount(controller.dispose)
 </script>
 
 <template>

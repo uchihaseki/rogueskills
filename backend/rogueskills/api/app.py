@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -13,28 +13,38 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
+from rogueskills.adapters.agent_preset_loader import (
+    AgentPresetIntegrityError,
+    load_agent_preset,
+)
 from rogueskills.adapters.discovery_gateway import DiscoveryGateway
 from rogueskills.adapters.llm_material_normalizer import OpenAICompatibleMaterialNormalizer
 from rogueskills.agents.material_normalizer import MaterialNormalizer, UnavailableMaterialNormalizer
 from rogueskills.application.errors import ApplicationError
+from rogueskills.application.finance_bootstrap import FinanceBootstrapService
+from rogueskills.application.preset_service import AgentPresetService
 from rogueskills.application.services import MaterialService, RunService, SkillService
 from rogueskills.domain.benchmark import run_scenario_benchmark
 from rogueskills.domain.catalogs import SEED_SKILLS, SOURCE_CONNECTORS
 from rogueskills.domain.evolution import public_catalog
 from rogueskills.domain.genome import capability_profile_from_genome, validate_skill_genome
 from rogueskills.infrastructure.database import create_database
+from rogueskills.infrastructure.preset_repository import AgentPresetRepository
 from rogueskills.infrastructure.repository import SkillRepository
 from rogueskills.settings import Settings
 
 from .models import (
     ChooseMutationRequest,
+    CreateAgentPresetRequest,
     CreateRunRequest,
+    FinanceBootstrapRequest,
     ImportRequest,
     MaterialConvertRequest,
     PromoteRequest,
     RunRevisionRequest,
     SearchRequest,
     SelectNodeRequest,
+    StartAutomaticRunRequest,
     StoreSkillRequest,
 )
 
@@ -48,8 +58,10 @@ def create_app(
     config = config or Settings()
     engine, sessions = create_database(config.database_url)
     repository = SkillRepository(sessions)
+    preset_repository = AgentPresetRepository(sessions)
     skills = SkillService(repository)
     runs = RunService(repository)
+    presets = AgentPresetService(repository, preset_repository)
     owns_client = http_client is None
     client = http_client or httpx.AsyncClient(
         timeout=httpx.Timeout(20), headers={"User-Agent": "RogueSkills-Discovery/0.2"}
@@ -68,7 +80,14 @@ def create_app(
             else UnavailableMaterialNormalizer()
         )
     materials = MaterialService(material_normalizer)
+    finance = FinanceBootstrapService(
+        gateway=gateway,
+        materials=materials,
+        skills=skills,
+        repository=repository,
+    )
     search_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+    automatic_run_tasks: dict[str, asyncio.Task[None]] = {}
 
     for seed in SEED_SKILLS:
         if not repository.get_skill(seed["id"]):
@@ -77,6 +96,11 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
+        tasks = list(automatic_run_tasks.values())
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
         if owns_client:
             await client.aclose()
         engine.dispose()
@@ -97,6 +121,7 @@ def create_app(
     )
     app.state.settings = config
     app.state.repository = repository
+    app.state.preset_repository = preset_repository
 
     @app.middleware("http")
     async def request_context(request: Request, call_next: Any) -> Any:
@@ -199,6 +224,14 @@ def create_app(
         )
         return {"skill": stored, "validation": validate_skill_genome(stored["genome"])}
 
+    @app.post("/api/scenarios/finance/bootstrap")
+    async def bootstrap_finance(payload: FinanceBootstrapRequest) -> dict[str, Any]:
+        return await finance.run(
+            max_community_skills=payload.maxCommunitySkills,
+            sop_ids=payload.sopIds,
+            auto_promote=payload.autoPromote,
+        )
+
     @app.post("/api/materials/convert")
     async def convert_material(payload: MaterialConvertRequest) -> dict[str, Any]:
         genome, normalization = await materials.convert(
@@ -275,8 +308,14 @@ def create_app(
         return runs.create(seed=payload.seed, skill_id=payload.skillId, mode_id=payload.modeId)
 
     @app.get("/api/runs/{run_id}")
-    def get_evolution_run(run_id: str) -> dict[str, Any]:
-        return runs.get(run_id)
+    async def get_evolution_run(run_id: str) -> dict[str, Any]:
+        record = runs.get(run_id)
+        if record["run"].get("automation", {}).get("status") == "running":
+            ensure_automatic_run_task(run_id)
+        return {
+            **record,
+            "artifact": preset_repository.get_by_run_id(run_id),
+        }
 
     @app.post("/api/runs/{run_id}/select-node")
     def select_evolution_node(run_id: str, payload: SelectNodeRequest) -> dict[str, Any]:
@@ -293,6 +332,102 @@ def create_app(
     @app.post("/api/runs/{run_id}/skip-mutation")
     def skip_evolution_mutation(run_id: str, payload: RunRevisionRequest) -> dict[str, Any]:
         return runs.skip_mutation(run_id, payload.expectedRevision)
+
+    async def drive_automatic_run(run_id: str) -> None:
+        while True:
+            await asyncio.sleep(config.automatic_run_step_delay_seconds)
+            record = runs.get(run_id)
+            automation = record["run"].get("automation") or {}
+            if automation.get("status") != "running":
+                return
+            record = runs.advance_automatic(run_id, record["revision"])
+            automation = record["run"].get("automation") or {}
+            if automation.get("status") == "running":
+                continue
+            if record["run"]["status"] == "victory":
+                project = automation["project"]
+                presets.create(
+                    run_id=run_id,
+                    expected_revision=record["revision"],
+                    project_name=project["name"],
+                    project_description=project["description"],
+                    scenario=project["scenario"],
+                )
+            return
+
+    def ensure_automatic_run_task(run_id: str) -> None:
+        current = automatic_run_tasks.get(run_id)
+        if current and not current.done():
+            return
+        task = asyncio.create_task(drive_automatic_run(run_id))
+        automatic_run_tasks[run_id] = task
+
+        def forget_automatic_run(finished: asyncio.Task[None]) -> None:
+            if automatic_run_tasks.get(run_id) is finished:
+                automatic_run_tasks.pop(run_id, None)
+
+        task.add_done_callback(forget_automatic_run)
+
+    @app.post("/api/runs/{run_id}/auto")
+    async def start_automatic_evolution(
+        run_id: str, payload: StartAutomaticRunRequest
+    ) -> dict[str, Any]:
+        record = runs.start_automatic(
+            run_id,
+            selected_monster_ids=payload.selectedMonsterIds,
+            project={
+                "name": payload.projectName,
+                "description": payload.projectDescription,
+                "scenario": payload.scenario,
+            },
+            revision=payload.expectedRevision,
+        )
+        ensure_automatic_run_task(run_id)
+        return {**record, "artifact": None}
+
+    @app.post("/api/runs/{run_id}/agent-preset", status_code=201)
+    def create_agent_preset(
+        run_id: str, payload: CreateAgentPresetRequest
+    ) -> dict[str, Any]:
+        preset, created = presets.create(
+            run_id=run_id,
+            expected_revision=payload.expectedRevision,
+            project_name=payload.projectName,
+            project_description=payload.projectDescription,
+            scenario=payload.scenario,
+        )
+        return {"preset": preset, "created": created}
+
+    @app.get("/api/agent-presets")
+    def list_agent_presets() -> dict[str, Any]:
+        return {"presets": preset_repository.list()}
+
+    @app.get("/api/agent-presets/{preset_id}")
+    def get_agent_preset(preset_id: str) -> dict[str, Any]:
+        return {"preset": presets.get(preset_id)}
+
+    @app.get("/api/agent-presets/{preset_id}/export")
+    def export_agent_preset(preset_id: str) -> JSONResponse:
+        preset = presets.get(preset_id)
+        return JSONResponse(
+            content=preset,
+            headers={
+                "Content-Disposition": f'attachment; filename="{preset_id}.json"',
+                "Cache-Control": "no-store",
+            },
+        )
+
+    @app.get("/api/agent-presets/{preset_id}/runtime-config")
+    def agent_preset_runtime_config(preset_id: str) -> dict[str, Any]:
+        try:
+            runtime_config = load_agent_preset(presets.get(preset_id))
+        except AgentPresetIntegrityError as error:
+            raise ApplicationError(
+                "AGENT_PRESET_INTEGRITY_FAILED",
+                "AgentPreset 内容校验失败。",
+                status_code=409,
+            ) from error
+        return {"runtimeConfig": runtime_config}
 
     @app.post("/api/benchmark/scenario")
     def scenario_preview(payload: dict[str, Any]) -> dict[str, Any]:

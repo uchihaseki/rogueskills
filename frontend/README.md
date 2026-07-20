@@ -12,7 +12,7 @@ Vue 3 + TypeScript + Vite 单页应用。前端与 FastAPI 后端独立运行和
 
 ## Local development
 
-在项目根目录启动 FastAPI（默认 `127.0.0.1:4173`）：
+在项目根目录启动 FastAPI（默认 `127.0.0.1:5173`）：
 
 ```sh
 npm start
@@ -24,14 +24,14 @@ npm start
 npm run frontend:dev
 ```
 
-然后访问 `http://localhost:5173/`。Vite 会把 `/api` 请求代理到 FastAPI。
+然后访问 `http://localhost:5174/`。Vite 会把 `/api` 请求代理到 FastAPI。
 
 ## API configuration
 
 默认 API 基础路径为 `/api`。如果前后端部署在不同域名，构建前设置：
 
 ```sh
-VITE_API_BASE_URL=http://127.0.0.1:4173
+VITE_API_BASE_URL=http://127.0.0.1:5173
 ```
 
 参考 `.env.example`。使用完整后端 URL 时，后端的 `ROGUESKILLS_CORS_ORIGINS` 必须包含前端来源。

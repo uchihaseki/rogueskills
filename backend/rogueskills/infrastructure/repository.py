@@ -273,6 +273,22 @@ class SkillRepository:
             session.flush()
             return self._evaluation_dict(row)
 
+    def get_skill_version(self, version_id: str) -> dict[str, Any] | None:
+        with self.sessions() as session:
+            row = session.get(SkillVersionRow, version_id)
+            return (
+                {
+                    "id": row.id,
+                    "skillId": row.skill_id,
+                    "version": row.version,
+                    "parentVersionId": row.parent_version_id,
+                    "genome": _parse(row.genome_json, {}),
+                    "createdAt": row.created_at,
+                }
+                if row
+                else None
+            )
+
     def get_evaluation(self, evaluation_id: str) -> dict[str, Any] | None:
         with self.sessions() as session:
             row = session.get(BenchmarkRunRow, evaluation_id)

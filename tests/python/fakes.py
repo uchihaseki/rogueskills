@@ -49,3 +49,47 @@ class FixtureMaterialNormalizer:
             ],
             tags=["browser", "extraction", "security"],
         )
+
+
+class FinanceFixtureMaterialNormalizer(FixtureMaterialNormalizer):
+    async def normalize(
+        self,
+        *,
+        title: str | None,
+        content: str,
+        kind: str,
+    ) -> NormalizedMaterial:
+        self.calls.append({"title": title, "content": content, "kind": kind})
+        return NormalizedMaterial(
+            title=title or "Stock Analysis Skill",
+            description="Analyze listed-company fundamentals, earnings, valuation, and risk with traceable evidence.",
+            role="You are an evidence-first listed-company financial analysis agent.",
+            objective="Produce a sourced fundamental and valuation analysis without fabricating data or personalized advice.",
+            instruction="Separate facts, assumptions, and inferences; execute every verification step in order.",
+            steps=[
+                "Confirm the ticker, exchange, reporting currency, fiscal period, and analysis date.",
+                "Collect filings and company disclosures from authoritative public sources.",
+                "Normalize income statement, balance sheet, and cash-flow metrics.",
+                "Evaluate earnings quality, operating drivers, and material risks.",
+                "Apply valuation methods with explicit assumptions and sensitivity scenarios.",
+                "Return an evidence table, conclusions, risks, and data gaps.",
+            ],
+            inputs=["Ticker", "Exchange", "Analysis date", "Public filings"],
+            outputs=["Sourced financial analysis", "Valuation scenarios", "Risk register"],
+            constraints=[
+                "Never fabricate financial values, citations, or consensus estimates.",
+                "Attach a source and date to every time-sensitive factual claim.",
+                "Separate reported facts from assumptions and inference.",
+                "Do not use material non-public information.",
+                "Do not present the result as guaranteed return or personalized investment advice.",
+            ],
+            tools=["Search", "Python"],
+            examples=[],
+            acceptanceCriteria=[
+                "Key financial metrics are traceable to public sources.",
+                "At least two valuation methods or sensitivity cases are documented.",
+                "Facts, assumptions, and inference are distinguishable.",
+                "Material risks and missing data are included.",
+            ],
+            tags=["finance", "stocks", "fundamental-analysis", "valuation", "earnings"],
+        )

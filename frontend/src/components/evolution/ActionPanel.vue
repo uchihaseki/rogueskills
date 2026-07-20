@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { EvolutionController } from '@/composables/useEvolutionRun'
+import type { Mutation } from '@/types/domain'
 import EvaluationResult from './EvaluationResult.vue'
 import MutationCard from './MutationCard.vue'
 
@@ -9,12 +10,32 @@ const run = computed(() => props.controller.run!)
 const node = computed(() => props.controller.selectedNode)
 const monster = computed(() => props.controller.monsterById(node.value?.monsterId))
 const type = computed(() => node.value ? props.controller.catalog.nodeTypes[node.value.type] : null)
-const draft = computed(() => run.value.currentDraft.map(props.controller.mutationById).filter(Boolean))
+const draft = computed(() => run.value.currentDraft
+  .map(props.controller.mutationById)
+  .filter((item): item is Mutation => Boolean(item)))
 </script>
 
 <template>
   <aside class="panel action-panel">
-    <div v-if="run.phase === 'choose_node'" class="action-content choose-content">
+    <div v-if="run.automation?.status === 'running'" class="action-content auto-run-content">
+      <span class="encounter-kicker">AUTOMATIC EVOLUTION</span>
+      <div class="auto-run-orb"><i></i><span>{{ run.automation.progress }}%</span></div>
+      <h2>自进化流程运行中</h2>
+      <p>{{ run.automation.message }}</p>
+      <div class="auto-progress-track"><b :style="{ width: `${run.automation.progress}%` }"></b></div>
+      <div class="auto-progress-meta">
+        <div><span>已完成节点</span><strong>{{ run.automation.completedNodes }} / {{ run.automation.totalNodes }}</strong></div>
+        <div><span>当前阶段</span><strong>{{ run.automation.stage.toUpperCase() }}</strong></div>
+      </div>
+      <div class="auto-targets">
+        <span>目标怪物</span>
+        <div><small v-for="monsterId in run.automation.selectedMonsterIds" :key="monsterId">{{ controller.monsterById(monsterId)?.name }}</small></div>
+      </div>
+      <EvaluationResult v-if="run.lastResult && !run.lastResult.kind" :result="run.lastResult" />
+      <small class="deterministic-note">路线、评估和能力选择均由后端权威状态机自动推进，页面只同步运行状态。</small>
+    </div>
+
+    <div v-else-if="run.phase === 'choose_node'" class="action-content choose-content">
       <span class="encounter-kicker">ROUTE DECISION</span><div class="radar-mark"><i></i><i></i><span>{{ controller.currentLayer.length }}</span></div><h2>选择下一条路线</h2>
       <p>地图随机生成了 {{ controller.currentLayer.length }} 个可选节点。精英风险更高，但更容易提供高价值 Mutation。</p>
       <div class="decision-rules"><div><span>公开节点</span><strong>完整评估反馈</strong></div><div><span>精英节点</span><strong>更高难度与奖励</strong></div><div><span>Hidden Boss</span><strong>隔离数据，不提供训练反馈</strong></div></div><p class="select-hint">← 在地图中选择高亮节点</p>
@@ -34,8 +55,27 @@ const draft = computed(() => run.value.currentDraft.map(props.controller.mutatio
       <div class="mutation-draft"><MutationCard v-for="mutation in draft" :key="mutation.id" :controller="controller" :mutation="mutation" /><p v-if="!draft.length" class="empty-copy">当前 Complexity 无法容纳新的 Mutation。</p></div><button class="text-button" @click="controller.skipMutation">放弃奖励，保持当前构筑 →</button>
     </div>
 
-    <div v-else class="action-content end-content" :class="run.status === 'victory' ? 'victory' : 'defeat'"><span class="encounter-kicker">RUN {{ run.status === 'victory' ? 'COMPLETE' : 'TERMINATED' }}</span><div class="end-symbol">{{ run.status === 'victory' ? '✦' : '×' }}</div><h2>{{ run.status === 'victory' ? '获得候选发布资格' : '进化分支已经死亡' }}</h2><p>{{ run.status === 'victory' ? 'Skill 已通过隔离的端到端隐藏验收。下一步应进入安全检查和 Canary，而不是直接覆盖生产版本。' : '生产 Skill 没有受到影响。地图、选择、评估与失败样本已经保存在本次 Replay 中。' }}</p>
-      <div class="run-summary"><div><span>遭遇通过</span><strong>{{ run.encounterHistory.filter(item => item.passed).length }} / {{ run.encounterHistory.length }}</strong></div><div><span>Mutation</span><strong>{{ run.mutationIds.length }}</strong></div><div><span>武器进化</span><strong>{{ run.evolutionIds.length }}</strong></div><div><span>最终得分</span><strong>{{ controller.objectiveScore(run) }}</strong></div></div><button class="primary-button" @click="controller.retrySeed">使用相同 Seed 重新构筑</button><button class="text-button" @click="controller.returnToSetup">返回 Run 设置</button>
+    <div v-else class="action-content end-content" :class="run.status === 'victory' ? 'victory' : 'defeat'"><span class="encounter-kicker">RUN {{ run.status === 'victory' ? 'COMPLETE' : 'TERMINATED' }}</span><div class="end-symbol">{{ run.status === 'victory' ? '✦' : '×' }}</div><h2>{{ run.status === 'victory' ? (controller.agentPreset ? '项目产物已生成' : '可以生成 AgentPreset') : '进化分支已经死亡' }}</h2><p>{{ run.status === 'victory' ? '当前构筑已通过能力数值模拟并保存为静态候选配置；它尚未经过真实 Tool Runtime 验证，也不会自动进入生产。' : '生产 Skill 没有受到影响。地图、选择、评估与失败样本已经保存在本次 Replay 中。' }}</p>
+      <div class="run-summary"><div><span>遭遇通过</span><strong>{{ run.encounterHistory.filter(item => item.passed).length }} / {{ run.encounterHistory.length }}</strong></div><div><span>Mutation</span><strong>{{ run.mutationIds.length }}</strong></div><div><span>武器进化</span><strong>{{ run.evolutionIds.length }}</strong></div><div><span>最终得分</span><strong>{{ controller.objectiveScore(run) }}</strong></div></div>
+      <section v-if="run.status === 'victory'" class="preset-builder project-artifact-card">
+        <template v-if="!controller.agentPreset">
+          <div class="preset-heading"><span>AGENT PRESET · V0.1</span><strong>把本局构筑保存为场景配置</strong></div>
+          <label>Project 名称<input v-model.trim="controller.presetProjectName" maxlength="160"></label>
+          <label>业务场景<input v-model.trim="controller.presetScenario" maxlength="500"></label>
+          <label>配置说明<textarea v-model.trim="controller.presetProjectDescription" maxlength="2000" rows="3"></textarea></label>
+          <p v-if="controller.presetError" class="preset-error">{{ controller.presetError }}</p>
+          <button class="primary-button" :disabled="controller.presetPending || !controller.presetProjectName || !controller.presetScenario || !controller.presetProjectDescription" @click="controller.saveAgentPreset">
+            {{ controller.presetPending ? '正在编译配置…' : '保存 AgentPreset' }}
+          </button>
+        </template>
+        <template v-else>
+          <div class="preset-saved"><span>PROJECT ARTIFACT · SAVED</span><strong>{{ controller.agentPreset.project.name }}</strong><small>{{ controller.agentPreset.id }}</small></div>
+          <div class="preset-stats"><div><span>Workflow</span><strong>{{ controller.agentPreset.workflow.length }}</strong></div><div><span>Tools</span><strong>{{ controller.agentPreset.tools.length }}</strong></div><div><span>Rules</span><strong>{{ controller.agentPreset.rules.constraints.length + controller.agentPreset.rules.retry.length + controller.agentPreset.rules.fallback.length + controller.agentPreset.rules.outputValidation.length }}</strong></div></div>
+          <p class="preset-warning">Candidate · capability simulation · runtimeVerified=false</p>
+          <button class="primary-button" @click="controller.exportAgentPreset">导出项目产物 JSON</button>
+        </template>
+      </section>
+      <button class="primary-button secondary-run-button" @click="controller.retrySeed">使用相同 Seed 重新构筑</button><button class="text-button" @click="controller.returnToSetup">返回 Run 设置</button>
     </div>
   </aside>
 </template>

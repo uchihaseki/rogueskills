@@ -19,6 +19,26 @@
         "vision": 12,
         "structure": 52
       }
+    },
+    "finance": {
+      "id": "finance",
+      "name": "Financial Analysis Skill",
+      "role": "上市公司金融分析 Agent",
+      "description": "基于公开证据完成财报、基本面、估值和风险分析。",
+      "initialWeapons": [
+        "Public Filing Search",
+        "Financial Statement Normalizer",
+        "Valuation Worksheet"
+      ],
+      "stats": {
+        "quality": 55,
+        "robustness": 48,
+        "speed": 42,
+        "efficiency": 48,
+        "security": 52,
+        "vision": 8,
+        "structure": 58
+      }
     }
   },
   "EVOLUTIONS": [
@@ -98,6 +118,57 @@
         "efficiency": -6
       },
       "description": "把拆解、执行、反思和重新规划组合为闭环工作流。"
+    },
+    {
+      "id": "evidence_grade_analyst",
+      "name": "Evidence-grade Analyst",
+      "subtitle": "证据级研究核心",
+      "tagRequirements": {
+        "evidence": 2,
+        "structured": 1,
+        "quality": 1
+      },
+      "effects": {
+        "quality": 10,
+        "robustness": 6,
+        "structure": 8,
+        "efficiency": -3
+      },
+      "description": "把多来源核验、事实推断分离和结构化证据表组合为可审计研究流程。"
+    },
+    {
+      "id": "scenario_valuation_engine",
+      "name": "Scenario Valuation Engine",
+      "subtitle": "情景估值引擎",
+      "tagRequirements": {
+        "valuation": 2,
+        "planner": 1,
+        "structured": 1
+      },
+      "effects": {
+        "quality": 9,
+        "robustness": 8,
+        "structure": 6,
+        "speed": -4
+      },
+      "description": "将多方法估值、假设敏感性和三情景输出组合为一致的估值流程。"
+    },
+    {
+      "id": "risk_governed_research",
+      "name": "Risk-governed Research",
+      "subtitle": "风险治理研究器",
+      "tagRequirements": {
+        "security": 2,
+        "constraint": 2,
+        "evidence": 1
+      },
+      "effects": {
+        "security": 14,
+        "robustness": 8,
+        "quality": 4,
+        "speed": -3
+      },
+      "description": "把来源许可、非公开信息隔离、风险清单和结论边界组合为研究硬门槛。"
     }
   ],
   "MONSTERS": {
@@ -262,6 +333,107 @@
       },
       "severity": 6,
       "securityFloor": 55
+    },
+    "stale_filing_imp": {
+      "id": "stale_filing_imp",
+      "name": "过期财报小鬼",
+      "failureMode": "数据日期和报告期间混淆",
+      "businessExample": "使用旧季度数据回答最新经营问题，且没有标记基准日。",
+      "requirements": {"quality": 0.28, "robustness": 0.3, "structure": 0.28, "efficiency": 0.14},
+      "severity": 1
+    },
+    "accounting_mirror": {
+      "id": "accounting_mirror",
+      "name": "会计口径镜像",
+      "failureMode": "GAAP、非 GAAP、币种和财年口径不一致",
+      "businessExample": "将不同口径的利润率和每股收益直接比较。",
+      "requirements": {"quality": 0.3, "robustness": 0.24, "structure": 0.36, "security": 0.1},
+      "severity": 2
+    },
+    "earnings_quality_leech": {
+      "id": "earnings_quality_leech",
+      "name": "盈利质量吸血虫",
+      "failureMode": "利润、现金流和一次性项目背离",
+      "businessExample": "净利润增长但经营现金流恶化，并包含大额一次性收益。",
+      "requirements": {"quality": 0.34, "robustness": 0.32, "structure": 0.22, "efficiency": 0.12},
+      "severity": 3
+    },
+    "restatement_hydra": {
+      "id": "restatement_hydra",
+      "name": "财报重述九头蛇",
+      "failureMode": "隐藏口径变化、重述和跨期数据冲突",
+      "businessExample": "历史数据被重述，需要重新建立可追溯且一致的财务序列。",
+      "requirements": {"quality": 0.3, "robustness": 0.3, "structure": 0.28, "security": 0.12},
+      "severity": 4,
+      "securityFloor": 42
+    },
+    "multiple_trap": {
+      "id": "multiple_trap",
+      "name": "估值倍数陷阱",
+      "failureMode": "不可比公司和周期错配",
+      "businessExample": "使用商业模式和增长阶段完全不同的公司作为可比对象。",
+      "requirements": {"quality": 0.4, "robustness": 0.25, "structure": 0.2, "efficiency": 0.15},
+      "severity": 2
+    },
+    "assumption_fog": {
+      "id": "assumption_fog",
+      "name": "假设迷雾",
+      "failureMode": "估值假设未披露且缺少敏感性",
+      "businessExample": "DCF 只给出单点结果，没有增长率、利润率和折现率依据。",
+      "requirements": {"quality": 0.32, "robustness": 0.28, "structure": 0.28, "security": 0.12},
+      "severity": 3
+    },
+    "cashflow_mirage": {
+      "id": "cashflow_mirage",
+      "name": "现金流海市蜃楼",
+      "failureMode": "资本开支、营运资金和股权稀释遗漏",
+      "businessExample": "只看净利润和 EBITDA，忽略自由现金流与稀释。",
+      "requirements": {"quality": 0.34, "robustness": 0.34, "structure": 0.2, "efficiency": 0.12},
+      "severity": 3
+    },
+    "valuation_colossus": {
+      "id": "valuation_colossus",
+      "name": "估值巨像",
+      "failureMode": "多方法估值和情景敏感性组合验收",
+      "businessExample": "在不确定宏观和经营假设下给出可解释的估值区间。",
+      "requirements": {"quality": 0.32, "robustness": 0.3, "structure": 0.25, "efficiency": 0.13},
+      "severity": 5,
+      "securityFloor": 45
+    },
+    "source_conflict_sphinx": {
+      "id": "source_conflict_sphinx",
+      "name": "来源冲突斯芬克斯",
+      "failureMode": "公告、数据平台和媒体数字冲突",
+      "businessExample": "同一财务指标在多个来源中口径和数值不同。",
+      "requirements": {"quality": 0.3, "robustness": 0.3, "security": 0.22, "structure": 0.18},
+      "severity": 4,
+      "securityFloor": 48
+    },
+    "regime_shift_bear": {
+      "id": "regime_shift_bear",
+      "name": "周期切换熊",
+      "failureMode": "历史趋势外推遇到行业和宏观状态切换",
+      "businessExample": "把高景气期利润率直接外推到需求收缩期。",
+      "requirements": {"quality": 0.25, "robustness": 0.4, "structure": 0.2, "efficiency": 0.15},
+      "severity": 4
+    },
+    "advice_mimic": {
+      "id": "advice_mimic",
+      "name": "荐股模仿怪",
+      "failureMode": "无证据收益承诺与不当个性化建议",
+      "businessExample": "外部材料诱导 Agent 保证收益或使用未公开信息。",
+      "requirements": {"security": 0.5, "quality": 0.2, "robustness": 0.18, "structure": 0.12},
+      "severity": 5,
+      "securityFloor": 58
+    },
+    "investment_committee": {
+      "id": "investment_committee",
+      "name": "影子投委会",
+      "failureMode": "端到端证据、估值、风险和边界验收",
+      "businessExample": "面对陌生公司和冲突数据，形成可审计但不越界的完整研究报告。",
+      "requirements": {"quality": 0.26, "robustness": 0.25, "security": 0.22, "structure": 0.2, "efficiency": 0.07},
+      "severity": 6,
+      "securityFloor": 60
     }
   },
   "MUTATIONS": [
@@ -598,6 +770,72 @@
       },
       "benefit": "执行前检查工具权限和影响范围。",
       "tradeoff": "增加操作前置检查。"
+    },
+    {
+      "id": "source_triangulation",
+      "name": "Source Triangulation",
+      "category": "Workflow",
+      "rarity": "common",
+      "tags": ["evidence", "quality", "structured"],
+      "complexityCost": 1,
+      "effects": {"quality": 9, "robustness": 6, "structure": 5, "speed": -3},
+      "benefit": "使用监管披露、公司公告和第二来源交叉核验关键事实。",
+      "tradeoff": "增加检索和核对成本。"
+    },
+    {
+      "id": "filing_recency_guard",
+      "name": "Filing Recency Guard",
+      "category": "Constraint",
+      "rarity": "common",
+      "tags": ["evidence", "robustness", "constraint"],
+      "complexityCost": 1,
+      "effects": {"robustness": 10, "quality": 6, "security": 3},
+      "benefit": "强制记录报告期间、发布日期和分析基准日。",
+      "tradeoff": "缺少日期的来源会被拒绝。"
+    },
+    {
+      "id": "accounting_normalizer",
+      "name": "Accounting Normalizer",
+      "category": "Workflow",
+      "rarity": "common",
+      "tags": ["structured", "quality", "evidence"],
+      "complexityCost": 1,
+      "effects": {"structure": 13, "quality": 8, "robustness": 5, "speed": -4},
+      "benefit": "统一币种、财年、GAAP 与非 GAAP 口径后再比较。",
+      "tradeoff": "增加数据准备步骤。"
+    },
+    {
+      "id": "earnings_quality_check",
+      "name": "Earnings Quality Check",
+      "category": "Planner",
+      "rarity": "uncommon",
+      "tags": ["quality", "evidence", "robustness"],
+      "complexityCost": 1,
+      "effects": {"quality": 10, "robustness": 9, "structure": 3, "efficiency": -4},
+      "benefit": "核对利润、现金流、一次性项目和营运资金变化。",
+      "tradeoff": "需要更多历史期间数据。"
+    },
+    {
+      "id": "valuation_sensitivity",
+      "name": "Valuation Sensitivity",
+      "category": "Planner",
+      "rarity": "uncommon",
+      "tags": ["valuation", "planner", "structured"],
+      "complexityCost": 2,
+      "effects": {"quality": 11, "robustness": 10, "structure": 7, "speed": -6, "efficiency": -5},
+      "benefit": "使用多方法和悲观、基准、乐观情景输出估值区间。",
+      "tradeoff": "增加假设管理和计算成本。"
+    },
+    {
+      "id": "risk_register",
+      "name": "Risk Register",
+      "category": "Constraint",
+      "rarity": "uncommon",
+      "tags": ["security", "constraint", "evidence"],
+      "complexityCost": 1,
+      "effects": {"security": 13, "robustness": 8, "quality": 4, "speed": -2},
+      "benefit": "强制输出风险、数据缺口、催化剂和需要继续验证的事项。",
+      "tradeoff": "结论会更保守。"
     }
   ],
   "NODE_TYPES": {
@@ -668,6 +906,35 @@
       "boss": "shadow_release"
     }
   ],
+  "FINANCE_REGIONS": [
+    {
+      "id": "disclosure_district",
+      "act": 1,
+      "name": "披露数据区",
+      "subtitle": "财报口径、时效与盈利质量",
+      "description": "公开披露并不天然一致，日期、口径和现金流会检验研究基础。",
+      "monsters": ["stale_filing_imp", "accounting_mirror", "earnings_quality_leech"],
+      "boss": "restatement_hydra"
+    },
+    {
+      "id": "valuation_laboratory",
+      "act": 2,
+      "name": "估值实验场",
+      "subtitle": "可比公司、现金流与假设敏感性",
+      "description": "单点估值和未经披露的假设会在多情景压力下暴露。",
+      "monsters": ["multiple_trap", "assumption_fog", "cashflow_mirage"],
+      "boss": "valuation_colossus"
+    },
+    {
+      "id": "risk_committee",
+      "act": 3,
+      "name": "风险投委会",
+      "subtitle": "来源冲突、周期切换与结论边界",
+      "description": "最终研究必须在冲突数据和不确定性下保持证据、风险与合规边界。",
+      "monsters": ["source_conflict_sphinx", "regime_shift_bear", "advice_mimic"],
+      "boss": "investment_committee"
+    }
+  ],
   "RUN_MODES": {
     "stable": {
       "id": "stable",
@@ -722,4 +989,3 @@
     "structure": "结构"
   }
 }
-

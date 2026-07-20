@@ -6,6 +6,7 @@ from .benchmark import run_scenario_benchmark
 from .catalogs import (
     ARCHETYPES,
     EVOLUTIONS,
+    FINANCE_REGIONS,
     MONSTERS,
     MUTATIONS,
     NODE_TYPES,
@@ -20,6 +21,15 @@ MAX_STABILITY = 12
 MAX_COMPLEXITY = 8
 SAVE_VERSION = 2
 BASE_DIFFICULTY = [42, 50, 57]
+FINANCE_MUTATION_IDS = {
+    "source_triangulation",
+    "filing_recency_guard",
+    "accounting_normalizer",
+    "earnings_quality_check",
+    "valuation_sensitivity",
+    "risk_register",
+}
+BROWSER_ONLY_MUTATION_IDS = {"semantic_locator", "screenshot_ocr", "visual_locator"}
 
 
 def _mutation(mutation_id: str) -> dict[str, Any] | None:
@@ -67,9 +77,10 @@ def _create_node(
     }
 
 
-def generate_map(seed: str) -> list[dict[str, Any]]:
+def generate_map(seed: str, scenario_id: str = "browser") -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
-    for act_index, source_region in enumerate(REGIONS):
+    source_regions = FINANCE_REGIONS if scenario_id == "finance" else REGIONS
+    for act_index, source_region in enumerate(source_regions):
         region = deepcopy(source_region)
         random = create_rng(f"{seed}|map|act-{act_index + 1}")
         monster_order = shuffle(region["monsters"], random)
@@ -116,6 +127,8 @@ def create_run(
     skill_genome: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     normalized_seed = str(seed or "ROGUE-001").strip() or "ROGUE-001"
+    if skill_genome and skill_genome.get("metadata", {}).get("category") == "finance":
+        archetype_id = "finance"
     archetype = ARCHETYPES.get(archetype_id, ARCHETYPES["browser"])
     mode = RUN_MODES.get(mode_id, RUN_MODES["stable"])
     skill_name = skill_genome.get("name", archetype["name"]) if skill_genome else archetype["name"]
@@ -145,6 +158,7 @@ def create_run(
         "id": f"run-{hash_string(run_hash_input):x}",
         "seed": normalized_seed,
         "archetypeId": archetype["id"],
+        "scenarioId": archetype["id"],
         "baseSkillId": skill_genome.get("id", archetype["id"]) if skill_genome else archetype["id"],
         "baseSkillVersion": skill_genome.get("schemaVersion") if skill_genome else None,
         "baseSkillGenome": deepcopy(skill_genome),
@@ -165,7 +179,7 @@ def create_run(
         "initialWeapons": initial_weapons,
         "mutationIds": [],
         "evolutionIds": [],
-        "map": generate_map(normalized_seed),
+        "map": generate_map(normalized_seed, archetype["id"]),
         "completedNodeIds": [],
         "encounterHistory": [],
         "currentDraft": [],
@@ -300,7 +314,23 @@ def _mutation_relevance(
     rarity_boost = (
         2 if mutation["rarity"] == "rare" else 1 if mutation["rarity"] == "uncommon" else 0
     )
-    return encounter_gain * 1.5 + mode_gain + rarity_boost + random() * 12
+    automatic_target_gain = 0.0
+    selected_monster_ids = state.get("automation", {}).get("selectedMonsterIds", [])
+    for monster_id in selected_monster_ids:
+        target = MONSTERS.get(monster_id)
+        if not target:
+            continue
+        automatic_target_gain += sum(
+            max(0, mutation["effects"].get(stat, 0)) * weight
+            for stat, weight in target["requirements"].items()
+        )
+    return (
+        encounter_gain * 1.5
+        + mode_gain
+        + automatic_target_gain * 1.2
+        + rarity_boost
+        + random() * 12
+    )
 
 
 def create_mutation_draft(state: dict[str, Any], node: dict[str, Any] | None = None) -> list[str]:
@@ -310,10 +340,13 @@ def create_mutation_draft(state: dict[str, Any], node: dict[str, Any] | None = N
         f"{state['seed']}|draft|{node['id'] if node else 'free'}|{','.join(state['mutationIds'])}|{state['modeId']}"
     )
     remaining = state["complexityMax"] - state["complexityUsed"]
+    scenario_id = state.get("scenarioId", "browser")
     available = [
         item
         for item in MUTATIONS
         if item["id"] not in state["mutationIds"] and item["complexityCost"] <= remaining
+        and not (scenario_id == "finance" and item["id"] in BROWSER_ONLY_MUTATION_IDS)
+        and not (scenario_id != "finance" and item["id"] in FINANCE_MUTATION_IDS)
     ]
     scored = sorted(
         (
@@ -502,6 +535,215 @@ def skip_mutation(state: dict[str, Any]) -> dict[str, Any]:
     return _advance_layer(_with_log(state, "放弃本次 Mutation，保持当前构筑。"))
 
 
+def _automation_progress(state: dict[str, Any]) -> int:
+    total_nodes = max(1, sum(len(region["layers"]) for region in state["map"]))
+    return min(100, round(len(state["completedNodeIds"]) / total_nodes * 100))
+
+
+def _update_automation(
+    state: dict[str, Any],
+    *,
+    status: str | None = None,
+    stage: str | None = None,
+    message: str | None = None,
+) -> dict[str, Any]:
+    next_state = deepcopy(state)
+    automation = deepcopy(next_state.get("automation") or {})
+    if status is not None:
+        automation["status"] = status
+    if stage is not None:
+        automation["stage"] = stage
+    if message is not None:
+        automation["message"] = message
+    automation["completedNodes"] = len(next_state["completedNodeIds"])
+    automation["progress"] = _automation_progress(next_state)
+    next_state["automation"] = automation
+    return next_state
+
+
+def start_automatic_run(
+    state: dict[str, Any],
+    *,
+    selected_monster_ids: list[str],
+    project: dict[str, str],
+) -> dict[str, Any]:
+    if (
+        state["status"] != "active"
+        or state["phase"] != "choose_node"
+        or state["completedNodeIds"]
+        or state.get("automation", {}).get("status") == "running"
+    ):
+        return deepcopy(state)
+    total_nodes = sum(len(region["layers"]) for region in state["map"])
+    next_state = deepcopy(state)
+    next_state["automation"] = {
+        "status": "running",
+        "stage": "planning",
+        "message": "自动进化已启动，正在规划第一场遭遇。",
+        "selectedMonsterIds": list(dict.fromkeys(selected_monster_ids)),
+        "project": deepcopy(project),
+        "completedNodes": 0,
+        "totalNodes": total_nodes,
+        "progress": 0,
+    }
+    return _with_log(
+        next_state,
+        f"自动进化已启动：锁定 {len(next_state['automation']['selectedMonsterIds'])} 个目标怪物。",
+        "accent",
+    )
+
+
+def _automatic_node_score(state: dict[str, Any], node: dict[str, Any]) -> float:
+    selected = set(state.get("automation", {}).get("selectedMonsterIds", []))
+    if node.get("monsterId") in selected:
+        return 10_000 - node["difficulty"]
+    if node["type"] == "rest":
+        resource_pressure = max(0, 8 - state["stability"]) * 30 + max(0, 45 - state["compute"])
+        return resource_pressure - 40
+    if node["type"] == "lab":
+        remaining = state["complexityMax"] - state["complexityUsed"]
+        return 120 + remaining * 8 if remaining > 0 else -100
+    monster = MONSTERS.get(node.get("monsterId"))
+    if not monster:
+        return 0
+    deficit = sum(
+        max(0, 82 - state["stats"].get(stat, 0)) * weight
+        for stat, weight in monster["requirements"].items()
+    )
+    return deficit - node["difficulty"] * 0.05
+
+
+def _choose_automatic_node(state: dict[str, Any]) -> dict[str, Any] | None:
+    layer = get_current_layer(state)
+    if not layer:
+        return None
+    return max(layer, key=lambda node: (_automatic_node_score(state, node), node["id"]))
+
+
+def _future_automatic_monsters(state: dict[str, Any]) -> list[dict[str, Any]]:
+    selected = set(state.get("automation", {}).get("selectedMonsterIds", []))
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for region in state["map"][state["actIndex"] :]:
+        monster_ids = [region["boss"]]
+        monster_ids.extend(
+            node["monsterId"]
+            for layer in region["layers"]
+            for node in layer
+            if node.get("monsterId") in selected
+        )
+        for monster_id in monster_ids:
+            if monster_id in seen or monster_id not in MONSTERS:
+                continue
+            seen.add(monster_id)
+            result.append(MONSTERS[monster_id])
+    return result
+
+
+def _automatic_mutation_score(
+    state: dict[str, Any], mutation: dict[str, Any]
+) -> float:
+    score = 0.0
+    for monster in _future_automatic_monsters(state):
+        for stat, weight in monster["requirements"].items():
+            gain = mutation["effects"].get(stat, 0)
+            deficit = max(0, 85 - state["stats"].get(stat, 0))
+            score += gain * weight * (1 + deficit / 40)
+        if monster.get("securityFloor"):
+            score += max(0, mutation["effects"].get("security", 0)) * 2.5
+    score += max(0, mutation["effects"].get("robustness", 0)) * 1.2
+    score += max(0, mutation["effects"].get("efficiency", 0)) * 0.7
+    score += max(0, mutation["effects"].get("structure", 0)) * 0.4
+    score += sum(min(0, value) for value in mutation["effects"].values()) * 0.3
+    return score / max(0.75, mutation["complexityCost"])
+
+
+def _choose_automatic_mutation(state: dict[str, Any]) -> str | None:
+    candidates = [
+        mutation
+        for mutation_id in state["currentDraft"]
+        if (mutation := _mutation(mutation_id)) is not None
+    ]
+    if not candidates:
+        return None
+    return max(
+        candidates,
+        key=lambda mutation: (_automatic_mutation_score(state, mutation), mutation["id"]),
+    )["id"]
+
+
+def advance_automatic_run(state: dict[str, Any]) -> dict[str, Any]:
+    automation = state.get("automation") or {}
+    if automation.get("status") != "running":
+        return deepcopy(state)
+    if state["status"] != "active" or state["phase"] == "ended":
+        victory = state["status"] == "victory"
+        return _update_automation(
+            state,
+            status="completed" if victory else "failed",
+            stage="artifact" if victory else "ended",
+            message=(
+                "全部隐藏验收通过，正在生成项目产物。"
+                if victory
+                else "自动进化未通过隐藏验收，未生成项目产物。"
+            ),
+        )
+
+    if state["phase"] == "choose_node":
+        node = _choose_automatic_node(state)
+        if not node:
+            return deepcopy(state)
+        next_state = select_node(state, node["id"])
+        monster = MONSTERS.get(node.get("monsterId"))
+        label = monster["name"] if monster else "进化实验室" if node["type"] == "lab" else "安全节点"
+        return _update_automation(
+            next_state,
+            stage="encounter",
+            message=f"正在执行：{label}。",
+        )
+
+    if state["phase"] == "encounter":
+        next_state = resolve_current_node(state)
+        if next_state["phase"] == "ended":
+            victory = next_state["status"] == "victory"
+            return _update_automation(
+                next_state,
+                status="completed" if victory else "failed",
+                stage="artifact" if victory else "ended",
+                message=(
+                    "全部隐藏验收通过，正在生成项目产物。"
+                    if victory
+                    else "自动进化未通过隐藏验收，未生成项目产物。"
+                ),
+            )
+        if next_state["phase"] == "reward":
+            return _update_automation(
+                next_state,
+                stage="mutation",
+                message="Benchmark 已完成，正在自动选择 Mutation。",
+            )
+        return _update_automation(
+            next_state,
+            stage="planning",
+            message="节点已完成，正在规划下一场遭遇。",
+        )
+
+    if state["phase"] == "reward":
+        mutation_id = _choose_automatic_mutation(state)
+        next_state = choose_mutation(state, mutation_id) if mutation_id else skip_mutation(state)
+        mutation = _mutation(mutation_id) if mutation_id else None
+        return _update_automation(
+            next_state,
+            stage="planning",
+            message=(
+                f"已装配 Mutation：{mutation['name']}，正在规划下一场遭遇。"
+                if mutation
+                else "本轮没有可用 Mutation，正在规划下一场遭遇。"
+            ),
+        )
+    return deepcopy(state)
+
+
 def get_mutation_by_id(mutation_id: str) -> dict[str, Any] | None:
     mutation = _mutation(mutation_id)
     return deepcopy(mutation) if mutation else None
@@ -518,10 +760,22 @@ def get_monster_by_id(monster_id: str) -> dict[str, Any] | None:
 
 
 def public_catalog() -> dict[str, Any]:
+    scenario_monsters = {}
+    for scenario_id, regions in (("browser", REGIONS), ("finance", FINANCE_REGIONS)):
+        scenario_monsters[scenario_id] = [
+            {
+                **deepcopy(MONSTERS[monster_id]),
+                "regionId": region["id"],
+                "regionName": region["name"],
+            }
+            for region in regions
+            for monster_id in region["monsters"]
+        ]
     return {
         "archetypes": ARCHETYPES,
         "evolutions": EVOLUTIONS,
         "monsters": MONSTERS,
+        "scenarioMonsters": scenario_monsters,
         "mutations": MUTATIONS,
         "nodeTypes": NODE_TYPES,
         "runModes": RUN_MODES,

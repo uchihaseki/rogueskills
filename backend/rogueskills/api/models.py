@@ -51,3 +51,22 @@ class SelectNodeRequest(RunRevisionRequest):
 
 class ChooseMutationRequest(RunRevisionRequest):
     mutationId: str
+
+
+class StartAutomaticRunRequest(RunRevisionRequest):
+    selectedMonsterIds: list[str] = Field(min_length=1, max_length=12)
+    projectName: str = Field(min_length=1, max_length=160)
+    projectDescription: str = Field(min_length=1, max_length=2000)
+    scenario: str = Field(min_length=1, max_length=500)
+
+
+class CreateAgentPresetRequest(RunRevisionRequest):
+    projectName: str = Field(min_length=1, max_length=160)
+    projectDescription: str = Field(min_length=1, max_length=2000)
+    scenario: str = Field(min_length=1, max_length=500)
+
+
+class FinanceBootstrapRequest(StrictModel):
+    maxCommunitySkills: int = Field(default=2, ge=1, le=5)
+    sopIds: list[str] | None = None
+    autoPromote: bool = True

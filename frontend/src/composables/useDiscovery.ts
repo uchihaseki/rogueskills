@@ -1,15 +1,15 @@
 import { computed, reactive, watch } from 'vue'
 import {
-  apiHealth, benchmarkSkill, convertMaterial, deleteSkill, importDiscoveryCandidate,
+  apiHealth, benchmarkSkill, bootstrapFinanceSkills, convertMaterial, deleteSkill, importDiscoveryCandidate,
   listDiscoveryConnectors, listSkills, promoteSkill, searchDiscovery, storeSkillGenome,
 } from '@/api/client'
 import type {
-  DiscoveryCandidate, NormalizerStatus, ProviderStatus, SkillGenome, SourceConnector,
+  DiscoveryCandidate, FinanceBootstrapResult, NormalizerStatus, ProviderStatus, SkillGenome, SourceConnector,
 } from '@/types/domain'
 import { errorMessage, loadJson, recordToGenome, saveJson } from '@/utils'
 
 const STORAGE_KEY = 'rogueskills.discovery.library.v1'
-export type DiscoveryView = 'search' | 'convert' | 'library'
+export type DiscoveryView = 'search' | 'finance' | 'convert' | 'library'
 
 export function useDiscovery() {
   const state = reactive({
@@ -21,6 +21,8 @@ export function useDiscovery() {
     providerStatus: [] as ProviderStatus[],
     connectors: [] as SourceConnector[],
     searching: false,
+    financeRunning: false,
+    financeResult: null as FinanceBootstrapResult | null,
     normalizing: false,
     normalizer: null as NormalizerStatus | null,
     normalization: null as NormalizerStatus | null,
@@ -37,7 +39,8 @@ export function useDiscovery() {
     : state.results.filter((item) => item.kind === state.kindFilter))
 
   watch(() => state.view, (view) => {
-    document.title = `RogueSkills · ${view === 'search' ? 'Skill Discovery' : view === 'convert' ? 'SOP Converter' : 'Skill Repository'}`
+    const labels: Record<DiscoveryView, string> = { search: 'Skill Discovery', finance: 'Finance Bootstrap', convert: 'SOP Converter', library: 'Skill Repository' }
+    document.title = `RogueSkills · ${labels[view]}`
   }, { immediate: true })
 
   function setNotice(message: string, tone: 'success' | 'error' = 'success') { state.notice = { message, tone } }
@@ -84,6 +87,22 @@ export function useDiscovery() {
       saveLibrary(); setNotice(`「${genome.name}」已保存到隔离候选库。`)
     } catch (error) { setNotice(`候选转换失败：${errorMessage(error)}`, 'error') }
     finally { state.stagingId = null }
+  }
+
+  async function runFinanceBootstrap() {
+    if (!state.normalizer?.configured) return setNotice('后端尚未配置 Qwen LLM Normalizer。', 'error')
+    state.financeRunning = true; state.notice = null
+    try {
+      state.financeResult = await bootstrapFinanceSkills({ maxCommunitySkills: 2, autoPromote: true })
+      await syncRepository()
+      const summary = state.financeResult.summary
+      setNotice(
+        `金融初始化完成：${summary.initialSkills} 个 Skill 已进入 Initial Library，${summary.rejected} 个候选被过滤。`,
+        summary.initialSkills > 0 ? 'success' : 'error',
+      )
+    } catch (error) {
+      setNotice(`金融初始化失败：${errorMessage(error)}`, 'error')
+    } finally { state.financeRunning = false }
   }
 
   async function convert() {
@@ -141,7 +160,7 @@ export function useDiscovery() {
     } catch { state.gateway = 'offline'; state.results = []; state.providerStatus = [] }
   }
 
-  return { benchmark, candidateInLibrary, connectorById, convert, download, initialize, promote, remove, runSearch, stageCandidate, stagePreview, state, switchView, toggleSource, upload, visibleResults }
+  return { benchmark, candidateInLibrary, connectorById, convert, download, initialize, promote, remove, runFinanceBootstrap, runSearch, stageCandidate, stagePreview, state, switchView, toggleSource, upload, visibleResults }
 }
 
 export type DiscoveryController = ReturnType<typeof useDiscovery>
