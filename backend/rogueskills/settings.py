@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     llm_model: str | None = None
     llm_timeout_seconds: float = 60
     search_cache_ttl_seconds: int = 60
+    automatic_run_step_delay_seconds: float = Field(default=0.35, ge=0, le=5)
     max_request_bytes: int = 2_000_000
     cors_origins: list[str] = ["http://localhost:5174", "http://127.0.0.1:5174"]
     project_root: Path = PROJECT_ROOT

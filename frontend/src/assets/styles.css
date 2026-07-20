@@ -461,6 +461,100 @@ button {
   font-size: 10px;
 }
 
+.monster-target-block {
+  margin-top: 20px;
+}
+
+.target-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.target-heading div {
+  display: grid;
+  gap: 3px;
+}
+
+.target-heading span,
+.target-heading b {
+  color: var(--lime);
+  font: 600 9px var(--mono);
+  letter-spacing: 0.1em;
+}
+
+.target-heading strong {
+  font-size: 12px;
+}
+
+.target-heading b {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.monster-target-list {
+  display: grid;
+  max-height: 188px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding-right: 4px;
+  overflow: auto;
+}
+
+.monster-target {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.018);
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.monster-target:hover {
+  border-color: var(--line-strong);
+}
+
+.monster-target.selected {
+  border-color: rgba(185, 242, 95, 0.48);
+  background: linear-gradient(145deg, rgba(185, 242, 95, 0.1), rgba(185, 242, 95, 0.025));
+  box-shadow: inset 3px 0 var(--lime);
+}
+
+.monster-target span,
+.monster-target small {
+  overflow: hidden;
+  color: var(--muted);
+  font: 9px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monster-target strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monster-target-block > p,
+.auto-run-note {
+  margin: 8px 0 0;
+  color: var(--muted-2);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.auto-run-note {
+  text-align: center;
+}
+
 .seed-block {
   margin: 22px 0;
 }
@@ -531,6 +625,12 @@ button {
 .primary-button:hover {
   background: #c8ff72;
   transform: translateY(-1px);
+}
+
+.primary-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .primary-button.large {
@@ -1151,6 +1251,19 @@ button {
   box-shadow: 0 0 0 1px rgba(110, 214, 209, 0.12), 0 0 24px rgba(110, 214, 209, 0.08);
 }
 
+.map-node.targeted:not(.completed) {
+  border-color: rgba(185, 242, 95, 0.28);
+}
+
+.node-target {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: var(--lime);
+  font: 600 8px var(--mono);
+  letter-spacing: 0.1em;
+}
+
 .map-node.completed {
   opacity: 0.55;
   border-color: rgba(92, 225, 161, 0.25);
@@ -1301,6 +1414,107 @@ button {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.65;
+}
+
+.auto-run-orb {
+  position: relative;
+  display: grid;
+  width: 96px;
+  height: 96px;
+  margin: 30px auto 20px;
+  place-items: center;
+  border: 1px solid rgba(185, 242, 95, 0.32);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(185, 242, 95, 0.12), transparent 68%);
+  box-shadow: 0 0 32px rgba(185, 242, 95, 0.08);
+}
+
+.auto-run-orb::before,
+.auto-run-orb i {
+  position: absolute;
+  inset: 8px;
+  border: 1px dashed rgba(185, 242, 95, 0.32);
+  border-radius: 50%;
+  content: "";
+  animation: auto-orbit 5s linear infinite;
+}
+
+.auto-run-orb i {
+  inset: 17px;
+  border-color: rgba(110, 214, 209, 0.28);
+  animation-direction: reverse;
+  animation-duration: 3.2s;
+}
+
+.auto-run-orb span {
+  color: var(--lime);
+  font: 600 17px var(--mono);
+}
+
+@keyframes auto-orbit {
+  to { transform: rotate(360deg); }
+}
+
+.auto-progress-track {
+  height: 5px;
+  margin: 22px 0 10px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.auto-progress-track b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--lime));
+  transition: width 360ms ease;
+}
+
+.auto-progress-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.auto-progress-meta div,
+.auto-targets {
+  display: grid;
+  gap: 4px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.auto-progress-meta span,
+.auto-targets > span {
+  color: var(--muted);
+  font: 9px var(--mono);
+}
+
+.auto-progress-meta strong {
+  color: var(--lime);
+  font: 11px var(--mono);
+}
+
+.auto-targets {
+  margin: 8px 0 18px;
+}
+
+.auto-targets div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.auto-targets small {
+  padding: 4px 6px;
+  border: 1px solid rgba(185, 242, 95, 0.18);
+  border-radius: 4px;
+  color: #c8d2cb;
+  font: 9px var(--mono);
 }
 
 .monster-emblem,
@@ -1940,6 +2154,90 @@ button {
   color: var(--gold);
 }
 
+.project-artifact-card {
+  box-shadow: inset 3px 0 rgba(185, 242, 95, 0.5);
+}
+
+.completion-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  padding: 24px;
+  place-items: center;
+  background: rgba(3, 6, 5, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.completion-dialog {
+  width: min(460px, 100%);
+  padding: 30px;
+  border: 1px solid rgba(185, 242, 95, 0.34);
+  border-radius: 18px;
+  text-align: center;
+  background: linear-gradient(150deg, #182019, #0d120f);
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.58);
+}
+
+.completion-kicker {
+  color: var(--lime);
+  font: 600 9px var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.completion-symbol {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  margin: 22px auto 16px;
+  place-items: center;
+  border: 1px solid rgba(185, 242, 95, 0.35);
+  border-radius: 50%;
+  color: var(--lime);
+  background: rgba(185, 242, 95, 0.08);
+  font: 26px var(--mono);
+}
+
+.completion-symbol.defeat {
+  border-color: rgba(255, 105, 111, 0.42);
+  color: var(--red);
+  background: rgba(255, 105, 111, 0.08);
+}
+
+.completion-dialog h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.completion-dialog > p {
+  margin: 10px 0 20px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.completion-project {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.completion-project span,
+.completion-project small {
+  color: var(--muted);
+  font: 9px var(--mono);
+}
+
+.completion-project strong {
+  color: var(--lime);
+  font-size: 13px;
+}
+
 .secondary-run-button {
   margin-top: 14px;
   background: rgba(255, 255, 255, 0.04);
@@ -2012,6 +2310,11 @@ button {
   display: flex;
   justify-content: space-between;
   margin: 18px 4px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auto-run-orb::before,
+  .auto-run-orb i { animation: none; }
 }
 
 @media (max-width: 1240px) {

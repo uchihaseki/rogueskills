@@ -159,6 +159,11 @@ export interface Monster {
   securityFloor?: number
 }
 
+export interface ScenarioMonster extends Monster {
+  regionId: string
+  regionName: string
+}
+
 export interface Mutation {
   id: string
   name: string
@@ -236,12 +241,23 @@ export interface EvolutionRun {
   lastResult?: BenchmarkResult | null
   encounterHistory: Array<{ passed: boolean; [key: string]: unknown }>
   logs: Array<{ id: number; tone: string; message: string; act: number }>
+  automation?: {
+    status: 'running' | 'completed' | 'failed'
+    stage: 'planning' | 'encounter' | 'mutation' | 'artifact' | 'ended'
+    message: string
+    selectedMonsterIds: string[]
+    project: { name: string; description: string; scenario: string }
+    completedNodes: number
+    totalNodes: number
+    progress: number
+  }
 }
 
 export interface RunRecord {
   run: EvolutionRun
   revision: number
   baseSkillVersionId?: string
+  artifact?: AgentPreset | null
 }
 
 export interface AgentPresetProject {
@@ -360,6 +376,7 @@ export interface EvolutionCatalog {
   archetypes: Dictionary<Archetype>
   evolutions: Evolution[]
   monsters: Dictionary<Monster>
+  scenarioMonsters: Dictionary<ScenarioMonster[]>
   mutations: Mutation[]
   nodeTypes: Dictionary<NodeType>
   runModes: Dictionary<RunMode>

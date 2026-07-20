@@ -12,9 +12,10 @@ const subtitle = () => hidden() ? '数据与规则未公开' : monster()?.failur
 </script>
 
 <template>
-  <button class="map-node" :class="[node.type, state()]" :disabled="state() !== 'available'" :aria-label="title()" @click="controller.selectNode(node.id)">
+  <button class="map-node" :class="[node.type, state(), { targeted: controller.run?.automation?.selectedMonsterIds.includes(node.monsterId ?? '') }]" :disabled="state() !== 'available'" :aria-label="title()" @click="controller.selectNode(node.id)">
     <span class="node-symbol">{{ state() === 'completed' ? '✓' : type()?.symbol }}</span>
     <span class="node-copy"><small>{{ type()?.name }} · D{{ node.difficulty }}</small><strong>{{ title() }}</strong><em>{{ subtitle() }}</em></span>
+    <span v-if="controller.run?.automation?.selectedMonsterIds.includes(node.monsterId ?? '')" class="node-target">TARGET</span>
     <span v-if="state() === 'available'" class="node-enter">选择 →</span>
   </button>
 </template>

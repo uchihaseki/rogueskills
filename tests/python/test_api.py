@@ -33,6 +33,7 @@ def client(
     settings = Settings(
         database_url="sqlite://",
         project_root=Path(__file__).parents[2],
+        automatic_run_step_delay_seconds=0,
     )
     return TestClient(
         create_app(
@@ -117,6 +118,43 @@ def test_full_api_flow_and_authoritative_run_state() -> None:
         )
         assert stale.status_code == 409
         assert stale.json()["error"]["code"] == "STALE_RUN_REVISION"
+
+
+def test_automatic_run_advances_without_manual_node_commands_and_saves_project_artifact() -> None:
+    with client() as api:
+        created = api.post(
+            "/api/runs",
+            json={
+                "seed": "ROGUE-0714",
+                "skillId": "browser-extraction-base",
+                "modeId": "stable",
+            },
+        ).json()
+        run_id = created["run"]["id"]
+        started = api.post(
+            f"/api/runs/{run_id}/auto",
+            json={
+                "expectedRevision": created["revision"],
+                "selectedMonsterIds": ["dirty_slime", "canvas_wraith", "prompt_mimic"],
+                "projectName": "Browser Auto Project",
+                "projectDescription": "自动进化生成的浏览器项目配置。",
+                "scenario": "browser-extraction",
+            },
+        )
+        assert started.status_code == 200
+        assert started.json()["run"]["automation"]["status"] == "running"
+
+        record = started.json()
+        for _ in range(50):
+            record = api.get(f"/api/runs/{run_id}").json()
+            if record["run"]["automation"]["status"] != "running":
+                break
+
+        assert record["run"]["status"] == "victory"
+        assert record["run"]["automation"]["progress"] == 100
+        assert record["artifact"]["project"]["name"] == "Browser Auto Project"
+        assert record["artifact"]["sourceRun"]["runId"] == run_id
+        assert api.get(f"/api/runs/{run_id}").json()["artifact"]["id"] == record["artifact"]["id"]
 
 
 def test_victory_run_can_save_export_and_load_agent_preset() -> None:

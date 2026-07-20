@@ -6,11 +6,13 @@ from rogueskills.agents.material_normalizer import MaterialNormalizer, MaterialN
 from rogueskills.domain.benchmark import run_admission_benchmark
 from rogueskills.domain.discovery import build_skill_genome_from_normalized
 from rogueskills.domain.evolution import (
+    advance_automatic_run,
     choose_mutation,
     create_run,
     resolve_current_node,
     select_node,
     skip_mutation,
+    start_automatic_run,
 )
 from rogueskills.domain.genome import validate_skill_genome
 from rogueskills.infrastructure.repository import SkillRepository
@@ -135,7 +137,14 @@ class RunService:
             raise ApplicationError("RUN_NOT_FOUND", "Evolution Run 不存在。", status_code=404)
         return record
 
-    def _transition(self, run_id: str, revision: int, transition: Any) -> dict[str, Any]:
+    def _transition(
+        self,
+        run_id: str,
+        revision: int,
+        transition: Any,
+        *,
+        allow_automation: bool = False,
+    ) -> dict[str, Any]:
         record = self.get(run_id)
         if record["revision"] != revision:
             raise ApplicationError(
@@ -145,6 +154,12 @@ class RunService:
                 details={"currentRevision": record["revision"]},
             )
         previous = record["run"]
+        if previous.get("automation", {}).get("status") == "running" and not allow_automation:
+            raise ApplicationError(
+                "AUTOMATIC_RUN_IN_PROGRESS",
+                "自动进化运行中，不能插入手动节点操作。",
+                status_code=409,
+            )
         next_state = transition(deepcopy(previous))
         if next_state == previous:
             raise ApplicationError(
@@ -167,3 +182,45 @@ class RunService:
 
     def skip_mutation(self, run_id: str, revision: int) -> dict[str, Any]:
         return self._transition(run_id, revision, skip_mutation)
+
+    def start_automatic(
+        self,
+        run_id: str,
+        *,
+        selected_monster_ids: list[str],
+        project: dict[str, str],
+        revision: int,
+    ) -> dict[str, Any]:
+        record = self.get(run_id)
+        available_monster_ids = {
+            node["monsterId"]
+            for region in record["run"]["map"]
+            for layer in region["layers"]
+            for node in layer
+            if node.get("monsterId")
+        }
+        unknown = sorted(set(selected_monster_ids) - available_monster_ids)
+        if unknown:
+            raise ApplicationError(
+                "INVALID_AUTOMATION_MONSTERS",
+                "所选怪物不属于当前 Evolution Run 场景。",
+                status_code=422,
+                details={"monsterIds": unknown},
+            )
+        return self._transition(
+            run_id,
+            revision,
+            lambda state: start_automatic_run(
+                state,
+                selected_monster_ids=selected_monster_ids,
+                project=project,
+            ),
+        )
+
+    def advance_automatic(self, run_id: str, revision: int) -> dict[str, Any]:
+        return self._transition(
+            run_id,
+            revision,
+            advance_automatic_run,
+            allow_automation=True,
+        )

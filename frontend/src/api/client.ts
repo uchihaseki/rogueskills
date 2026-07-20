@@ -145,6 +145,16 @@ export const skipEvolutionMutation = (runId: string, expectedRevision: number) =
     method: 'POST', body: JSON.stringify({ expectedRevision }),
   })
 
+export const startAutomaticEvolution = (runId: string, payload: {
+  expectedRevision: number
+  selectedMonsterIds: string[]
+  projectName: string
+  projectDescription: string
+  scenario: string
+}) => request<RunRecord>(`/api/runs/${encodeURIComponent(runId)}/auto`, {
+  method: 'POST', body: JSON.stringify(payload),
+})
+
 export const createAgentPreset = (runId: string, payload: {
   expectedRevision: number
   projectName: string
