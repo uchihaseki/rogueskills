@@ -11,6 +11,7 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "html2canvas": "^1.4.1",
     "vue": "beta",
     "vue-router": "^4.6.3"
   },
