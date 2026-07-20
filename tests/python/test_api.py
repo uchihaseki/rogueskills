@@ -51,6 +51,19 @@ def create_quarantine(api: TestClient) -> dict:
     return stored.json()["skill"]
 
 
+def test_file_sqlite_database_creates_missing_parent_directory(tmp_path: Path) -> None:
+    database_path = tmp_path / "nested" / "data" / "rogueskills.db"
+    settings = Settings(
+        database_url=f"sqlite:///{database_path}",
+        project_root=Path(__file__).parents[2],
+    )
+
+    with TestClient(create_app(settings, material_normalizer=FixtureMaterialNormalizer())) as api:
+        assert api.get("/api/health").status_code == 200
+
+    assert database_path.is_file()
+
+
 def test_python_gateway_closes_lifecycle_bypasses() -> None:
     with client() as api:
         skill = create_quarantine(api)

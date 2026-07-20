@@ -1,14 +1,43 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useEvolutionRun } from '@/composables/useEvolutionRun'
+import CharacterSelectView from '@/components/evolution/CharacterSelectView.vue'
+import EvolutionUtilityNav from '@/components/evolution/EvolutionUtilityNav.vue'
+import RunObjectiveView from '@/components/evolution/RunObjectiveView.vue'
 import RunView from '@/components/evolution/RunView.vue'
-import SetupView from '@/components/evolution/SetupView.vue'
+import TitleView from '@/components/evolution/TitleView.vue'
+
+type SetupStage = 'title' | 'character' | 'objective'
 
 const controller = useEvolutionRun()
+const stage = ref<SetupStage>('title')
+
+watch(() => controller.run, (run, previousRun) => {
+  if (!run && previousRun) stage.value = 'character'
+})
+
 onMounted(controller.initialize)
 </script>
 
 <template>
-  <RunView v-if="controller.run" :controller="controller" />
-  <SetupView v-else :controller="controller" />
+  <div class="evolution-page" :class="{ 'has-active-run': controller.run }">
+    <EvolutionUtilityNav />
+    <RunView v-if="controller.run" :controller="controller" />
+    <Transition v-else name="pixel-scene" mode="out-in">
+      <TitleView v-if="stage === 'title'" key="title" @start="stage = 'character'" />
+      <CharacterSelectView
+        v-else-if="stage === 'character'"
+        key="character"
+        :controller="controller"
+        @back="stage = 'title'"
+        @next="stage = 'objective'"
+      />
+      <RunObjectiveView
+        v-else
+        key="objective"
+        :controller="controller"
+        @back="stage = 'character'"
+      />
+    </Transition>
+  </div>
 </template>

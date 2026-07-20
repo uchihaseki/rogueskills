@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import (
@@ -16,7 +17,7 @@ from sqlalchemy import (
     create_engine,
     event,
 )
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -117,13 +118,17 @@ class EvolutionRunRow(Base):
 
 
 def create_database(database_url: str) -> tuple[Engine, sessionmaker[Any]]:
-    connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
+    url = make_url(database_url)
+    if url.get_backend_name() == "sqlite" and url.database not in {None, "", ":memory:"}:
+        Path(url.database).expanduser().parent.mkdir(parents=True, exist_ok=True)
+
+    connect_args = {"check_same_thread": False} if url.get_backend_name() == "sqlite" else {}
     engine_options: dict[str, Any] = {"connect_args": connect_args, "future": True}
-    if database_url in {"sqlite://", "sqlite:///:memory:"}:
+    if url.get_backend_name() == "sqlite" and url.database in {None, "", ":memory:"}:
         engine_options["poolclass"] = StaticPool
     engine = create_engine(database_url, **engine_options)
 
-    if database_url.startswith("sqlite"):
+    if url.get_backend_name() == "sqlite":
 
         @event.listens_for(engine, "connect")
         def _sqlite_pragmas(connection: Any, _record: Any) -> None:

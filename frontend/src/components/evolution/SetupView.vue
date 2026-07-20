@@ -49,7 +49,6 @@ watch(() => props.controller.selectedSkillId, animateStats)
         <span><strong>RogueSkills</strong><small>EVOLUTION LAB</small></span>
       </RouterLink>
       <div class="nav-actions">
-        <RouterLink class="discovery-link" to="/discovery">发现 Skill <b>⌕</b></RouterLink>
         <div class="prototype-pill"><span></span> Core prototype · v0.1</div>
       </div>
     </header>
