@@ -3,7 +3,6 @@ import { onMounted, ref, watch } from 'vue'
 import { useEvolutionRun } from '@/composables/useEvolutionRun'
 import CharacterSelectView from '@/components/evolution/CharacterSelectView.vue'
 import EvolutionUtilityNav from '@/components/evolution/EvolutionUtilityNav.vue'
-import RunObjectiveView from '@/components/evolution/RunObjectiveView.vue'
 import RunView from '@/components/evolution/RunView.vue'
 import TitleView from '@/components/evolution/TitleView.vue'
 
@@ -26,17 +25,12 @@ onMounted(controller.initialize)
     <Transition v-else name="pixel-scene" mode="out-in">
       <TitleView v-if="stage === 'title'" key="title" @start="stage = 'character'" />
       <CharacterSelectView
-        v-else-if="stage === 'character'"
-        key="character"
-        :controller="controller"
-        @back="stage = 'title'"
-        @next="stage = 'objective'"
-      />
-      <RunObjectiveView
         v-else
-        key="objective"
+        key="setup"
         :controller="controller"
-        @back="stage = 'character'"
+        :objective-mode="stage === 'objective'"
+        @back="stage = stage === 'objective' ? 'character' : 'title'"
+        @next="stage = 'objective'"
       />
     </Transition>
   </div>
