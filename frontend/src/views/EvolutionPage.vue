@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import html2canvas from 'html2canvas'
 import { useEvolutionRun } from '@/composables/useEvolutionRun'
 import CharacterSelectView from '@/components/evolution/CharacterSelectView.vue'
@@ -30,10 +30,28 @@ async function captureScene(element: HTMLElement): Promise<HTMLCanvasElement> {
     useCORS: true,
     windowWidth: window.innerWidth / zoom,
     windowHeight: window.innerHeight / zoom,
+    onclone: (clonedDocument) => {
+      const clonedTitle = clonedDocument.querySelector<HTMLElement>('.title-screen')
+      const clonedContent = clonedTitle?.querySelector<HTMLElement>('.title-content')
+      if (!clonedTitle || !clonedContent) return
+      clonedTitle.style.isolation = 'auto'
+      clonedContent.style.setProperty('display', 'flex', 'important')
+      clonedContent.style.setProperty('visibility', 'visible', 'important')
+      clonedContent.style.setProperty('opacity', '1', 'important')
+      clonedContent.style.setProperty('transform', 'none', 'important')
+      clonedContent.style.setProperty('animation', 'none', 'important')
+    },
   })
 }
 
-async function transitionTo(targetStage: SetupStage, sourceSelector: string) {
+function downloadCapture(canvas: HTMLCanvasElement, filename: string) {
+  const link = document.createElement('a')
+  link.download = filename
+  link.href = canvas.toDataURL('image/png')
+  link.click()
+}
+
+async function transitionTo(targetStage: SetupStage, sourceSelector: string, downloadFilename?: string) {
   if (transitionSource.value) return
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     stage.value = targetStage
@@ -45,6 +63,9 @@ async function transitionTo(targetStage: SetupStage, sourceSelector: string) {
     transitionDirection.value = 'fall'
     pendingStage.value = targetStage
     transitionSource.value = await captureScene(source)
+    if (downloadFilename)  {
+      downloadCapture(transitionSource.value, downloadFilename)
+    }
   } catch(e) {
     stage.value = targetStage
     pendingStage.value = null
@@ -108,6 +129,8 @@ async function startDeployTransition() {
       cancelDeployTransition()
       return
     }
+    showRunView.value = true
+    await nextTick()
     transitionActive.value = true
   } catch {
     cancelDeployTransition()
@@ -126,13 +149,11 @@ function startPreparedTransition() {
 }
 
 function finishTitleTransition() {
-  const finishedDeployTransition = deployTransitionActive.value
   transitionActive.value = false
   pendingStage.value = null
   deployTransitionActive.value = false
   deployApiPromise = null
   releaseTransitionCanvas()
-  if (finishedDeployTransition) showRunView.value = true
 }
 
 watch(() => controller.run, (run, previousRun) => {
@@ -164,7 +185,7 @@ onBeforeUnmount(disposePage)
     />
     <EvolutionUtilityNav />
     <RunView v-if="controller.run && showRunView" :controller="controller" />
-    <Transition v-else name="pixel-scene" mode="out-in">
+    <template v-else>
       <TitleView v-if="stage === 'title'" key="title" @start="startCharacterStage" />
       <CharacterSelectView
         v-else
@@ -175,6 +196,6 @@ onBeforeUnmount(disposePage)
         @next="stage = 'objective'"
         @deploy="handleDeploy"
       />
-    </Transition>
+    </template>
   </div>
 </template>
