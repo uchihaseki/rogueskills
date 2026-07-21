@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZipFile
@@ -418,5 +419,256 @@ multiple fiscal periods before producing a sourced equity research report.
             assert repeated.status_code == 200
             assert repeated.json()["summary"]["initialSkills"] == 3
             assert len(normalizer.calls) == 3
+    finally:
+        asyncio.run(http_client.aclose())
+
+
+def _wait_for_discovery_run(api: TestClient, run_id: str) -> dict:
+    for _attempt in range(100):
+        snapshot = api.get(f"/api/discovery/search-runs/{run_id}").json()
+        if snapshot["run"]["state"] in {"review_ready", "failed", "cancelled"}:
+            return snapshot
+        time.sleep(0.01)
+    raise AssertionError("Discovery Search Run did not complete")
+
+
+def test_unconfigured_remote_provider_fails_without_builtin_fallback() -> None:
+    with client() as api:
+        created = api.post(
+            "/api/discovery/search-runs",
+            json={"query": "browser skill", "providerIds": ["brave"]},
+        )
+        assert created.status_code == 202
+        snapshot = _wait_for_discovery_run(api, created.json()["run"]["id"])
+        assert snapshot["run"]["state"] == "failed"
+        assert snapshot["providerStatus"] == [
+            {
+                "providerId": "brave",
+                "state": "skipped",
+                "count": 0,
+                "code": "NOT_CONFIGURED",
+                "message": "API Key 尚未配置",
+            }
+        ]
+        assert snapshot["sources"] == []
+        assert snapshot["candidates"] == []
+
+
+def test_multi_provider_search_run_merges_real_web_sources_previews_and_imports() -> None:
+    source_url = "https://skills.example.com/evidence-research"
+    source_content = """# Evidence Research Skill
+
+## Goal
+Research a claim with traceable sources.
+
+## Steps
+1. Search authoritative sources.
+2. Compare the evidence.
+3. Return a cited conclusion.
+
+## Constraints
+- Never invent citations.
+"""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        host = request.url.host
+        if host == "api.search.brave.com":
+            assert request.headers["x-subscription-token"] == "brave-test"
+            return httpx.Response(
+                200,
+                json={
+                    "web": {
+                        "results": [
+                            {
+                                "url": source_url,
+                                "title": "Evidence Research Skill",
+                                "description": "A sourced research workflow",
+                            }
+                        ]
+                    }
+                },
+            )
+        if host == "api.tavily.com":
+            return httpx.Response(
+                200,
+                json={
+                    "results": [
+                        {
+                            "url": source_url,
+                            "title": "Evidence Research Skill",
+                            "content": "Research workflow with citations",
+                            "score": 0.92,
+                        }
+                    ]
+                },
+            )
+        if host == "api.exa.ai":
+            assert request.headers["x-api-key"] == "exa-test"
+            return httpx.Response(
+                200,
+                json={
+                    "results": [
+                        {
+                            "url": source_url,
+                            "title": "Evidence Research Skill",
+                            "text": "Research workflow with citations",
+                            "score": 0.89,
+                        }
+                    ]
+                },
+            )
+        if host == "skills.example.com":
+            return httpx.Response(
+                200,
+                text=source_content,
+                headers={"content-type": "text/markdown"},
+            )
+        return httpx.Response(404, json={"message": str(request.url)})
+
+    settings = Settings(
+        database_url="sqlite://",
+        project_root=Path(__file__).parents[2],
+        brave_api_key="brave-test",
+        tavily_api_key="tavily-test",
+        exa_api_key="exa-test",
+    )
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    try:
+        with TestClient(
+            create_app(
+                settings,
+                http_client=http_client,
+                material_normalizer=FixtureMaterialNormalizer(),
+            )
+        ) as api:
+            providers = api.get("/api/discovery/providers").json()["providers"]
+            assert {item["id"] for item in providers if item["configured"]} == {
+                "brave",
+                "tavily",
+                "exa",
+            }
+
+            created = api.post(
+                "/api/discovery/search-runs",
+                json={
+                    "query": "evidence research citations",
+                    "providerIds": ["brave", "tavily", "exa"],
+                },
+            )
+            assert created.status_code == 202
+            run_id = created.json()["run"]["id"]
+            snapshot = _wait_for_discovery_run(api, run_id)
+            assert snapshot["run"]["state"] == "review_ready"
+            assert len(snapshot["sources"]) == 1
+            assert {
+                item["providerId"] for item in snapshot["sources"][0]["discoveredBy"]
+            } == {"brave", "tavily", "exa"}
+            assert len(snapshot["candidates"]) == 1
+
+            events = api.get(f"/api/discovery/search-runs/{run_id}/events").text
+            assert "provider.started" in events
+            assert "source.found" in events
+            assert "run.review_ready" in events
+
+            candidate = snapshot["candidates"][0]
+            preview = api.get(
+                f"/api/discovery/candidates/{candidate['id']}/preview"
+            ).json()
+            assert preview["rawContent"] == source_content.strip()
+            assert preview["genome"]["name"] == "Evidence Research Skill"
+
+            imported = api.post(
+                "/api/discovery/import-batches",
+                headers={"Idempotency-Key": "web-import-test"},
+                json={
+                    "searchRunId": run_id,
+                    "candidateIds": [candidate["id"]],
+                    "expectedRunRevision": snapshot["run"]["revision"],
+                    "acknowledgedWarnings": [
+                        {
+                            "candidateId": candidate["id"],
+                            "code": "LICENSE_REVIEW_REQUIRED",
+                        }
+                    ],
+                },
+            )
+            assert imported.status_code == 201
+            assert imported.json()["summary"]["saved"] == 1
+    finally:
+        asyncio.run(http_client.aclose())
+
+
+def test_github_search_run_expands_every_skill_md_in_repository() -> None:
+    repository = {
+        "id": 444,
+        "full_name": "community/multi-skills",
+        "description": "Agent skills for browser extraction",
+        "topics": ["agent-skill", "browser"],
+        "license": {"spdx_id": "MIT"},
+        "updated_at": "2026-07-20T00:00:00Z",
+        "html_url": "https://github.com/community/multi-skills",
+        "default_branch": "main",
+        "stargazers_count": 250,
+        "owner": {"login": "community"},
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        if "/search/code" in url:
+            return httpx.Response(200, json={"items": []})
+        if "/search/repositories" in url:
+            return httpx.Response(200, json={"items": [repository]})
+        if "/commits/main" in url:
+            return httpx.Response(200, json={"sha": "fixed-commit"})
+        if "/git/trees/fixed-commit" in url:
+            return httpx.Response(
+                200,
+                json={
+                    "tree": [
+                        {"type": "blob", "path": "skills/browser/SKILL.md"},
+                        {"type": "blob", "path": "skills/research/SKILL.md"},
+                    ]
+                },
+            )
+        if "raw.githubusercontent.com" in url:
+            name = "Browser" if "browser" in url else "Research"
+            return httpx.Response(
+                200,
+                text=f"# {name} Skill\n\n## Steps\n1. Inspect input.\n2. Return output.\n\n## Constraints\n- Never expose secrets.",
+            )
+        return httpx.Response(404, json={"message": url})
+
+    settings = Settings(
+        database_url="sqlite://",
+        project_root=Path(__file__).parents[2],
+        github_token="github-test",
+    )
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    try:
+        with TestClient(
+            create_app(
+                settings,
+                http_client=http_client,
+                material_normalizer=FixtureMaterialNormalizer(),
+            )
+        ) as api:
+            created = api.post(
+                "/api/discovery/search-runs",
+                json={
+                    "query": "browser extraction",
+                    "providerIds": ["github"],
+                },
+            ).json()
+            snapshot = _wait_for_discovery_run(api, created["run"]["id"])
+            assert snapshot["run"]["state"] == "review_ready"
+            assert len(snapshot["sources"]) == 1
+            assert {item["artifactPath"] for item in snapshot["candidates"]} == {
+                "skills/browser/SKILL.md",
+                "skills/research/SKILL.md",
+            }
+            assert all(
+                item["snapshot"]["revision"] == "fixed-commit"
+                for item in snapshot["candidates"]
+            )
     finally:
         asyncio.run(http_client.aclose())

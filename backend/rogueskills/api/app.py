@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -8,10 +9,10 @@ from typing import Any
 from uuid import uuid4
 
 import httpx
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 
 from rogueskills.adapters.agent_preset_exporter import (
     AgentPresetExportTarget,
@@ -24,6 +25,7 @@ from rogueskills.adapters.agent_preset_loader import (
 from rogueskills.adapters.discovery_gateway import DiscoveryGateway
 from rogueskills.adapters.llm_material_normalizer import OpenAICompatibleMaterialNormalizer
 from rogueskills.agents.material_normalizer import MaterialNormalizer, UnavailableMaterialNormalizer
+from rogueskills.application.discovery_service import DiscoverySearchService
 from rogueskills.application.errors import ApplicationError
 from rogueskills.application.finance_bootstrap import FinanceBootstrapService
 from rogueskills.application.preset_service import AgentPresetService
@@ -41,6 +43,8 @@ from .models import (
     ChooseMutationRequest,
     CreateAgentPresetRequest,
     CreateRunRequest,
+    DiscoveryImportBatchRequest,
+    DiscoverySearchRunRequest,
     FinanceBootstrapRequest,
     ImportRequest,
     MaterialConvertRequest,
@@ -68,9 +72,23 @@ def create_app(
     presets = AgentPresetService(repository, preset_repository)
     owns_client = http_client is None
     client = http_client or httpx.AsyncClient(
-        timeout=httpx.Timeout(20), headers={"User-Agent": "RogueSkills-Discovery/0.2"}
+        timeout=httpx.Timeout(config.search_provider_timeout_seconds),
+        headers={"User-Agent": "RogueSkills-Discovery/0.3"},
     )
-    gateway = DiscoveryGateway(client, github_token=config.github_token)
+    gateway = DiscoveryGateway(
+        client,
+        github_token=config.github_token,
+        brave_api_key=config.brave_api_key,
+        tavily_api_key=config.tavily_api_key,
+        exa_api_key=config.exa_api_key,
+    )
+    discovery = DiscoverySearchService(
+        gateway,
+        skills,
+        max_results_per_provider=config.search_run_max_results_per_provider,
+        max_provider_requests=config.search_run_max_provider_requests,
+        retention_seconds=config.search_run_retention_seconds,
+    )
     if material_normalizer is None:
         material_normalizer = (
             OpenAICompatibleMaterialNormalizer(
@@ -105,6 +123,7 @@ def create_app(
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+        await discovery.close()
         if owns_client:
             await client.aclose()
         engine.dispose()
@@ -206,6 +225,72 @@ def create_app(
     @app.get("/api/discovery/connectors")
     def discovery_connectors() -> dict[str, Any]:
         return {"connectors": SOURCE_CONNECTORS}
+
+    @app.get("/api/discovery/providers")
+    def discovery_providers() -> dict[str, Any]:
+        return {"providers": discovery.providers()}
+
+    @app.post("/api/discovery/search-runs", status_code=202)
+    async def create_discovery_search_run(payload: DiscoverySearchRunRequest) -> dict[str, Any]:
+        snapshot = discovery.create_run(
+            query=payload.query.strip(),
+            provider_ids=payload.providerIds,
+            scope_ids=payload.scopeIds,
+            include_local_examples=payload.includeLocalExamples,
+        )
+        return {
+            **snapshot,
+            "eventsUrl": f"/api/discovery/search-runs/{snapshot['run']['id']}/events",
+        }
+
+    @app.get("/api/discovery/search-runs/{run_id}")
+    def get_discovery_search_run(run_id: str) -> dict[str, Any]:
+        return discovery.snapshot(run_id)
+
+    @app.get("/api/discovery/search-runs/{run_id}/events")
+    async def stream_discovery_search_run(
+        run_id: str,
+        request: Request,
+        after: int = Query(default=0, ge=0),
+    ) -> StreamingResponse:
+        last_event = request.headers.get("last-event-id")
+        after_event_id = int(last_event) if last_event and last_event.isdigit() else after
+
+        async def stream() -> AsyncIterator[str]:
+            async for event in discovery.event_stream(run_id, after_event_id=after_event_id):
+                if await request.is_disconnected():
+                    return
+                yield (
+                    f"id: {event['eventId']}\n"
+                    f"data: {json.dumps(event, ensure_ascii=False, separators=(',', ':'))}\n\n"
+                )
+
+        return StreamingResponse(
+            stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    @app.post("/api/discovery/search-runs/{run_id}/cancel")
+    async def cancel_discovery_search_run(run_id: str) -> dict[str, Any]:
+        return await discovery.cancel(run_id)
+
+    @app.get("/api/discovery/candidates/{candidate_id}/preview")
+    def preview_discovery_candidate(candidate_id: str) -> dict[str, Any]:
+        return discovery.preview(candidate_id)
+
+    @app.post("/api/discovery/import-batches", status_code=201)
+    async def import_discovery_batch(
+        payload: DiscoveryImportBatchRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> dict[str, Any]:
+        return await discovery.import_candidates(
+            run_id=payload.searchRunId,
+            candidate_ids=payload.candidateIds,
+            expected_revision=payload.expectedRunRevision,
+            idempotency_key=idempotency_key or f"dib-key-{uuid4().hex}",
+            acknowledged_warnings=[item.model_dump() for item in payload.acknowledgedWarnings],
+        )
 
     @app.post("/api/discovery/search")
     async def search_discovery(payload: SearchRequest) -> dict[str, Any]:

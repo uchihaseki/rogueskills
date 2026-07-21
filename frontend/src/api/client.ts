@@ -2,11 +2,15 @@ import type {
   AgentPreset,
   AgentPresetExportTarget,
   DiscoveryCandidate,
+  DiscoveryCandidatePreview,
+  DiscoveryImportBatch,
+  DiscoverySearchSnapshot,
   EvolutionCatalog,
   FinanceBootstrapResult,
   NormalizerStatus,
   ProviderStatus,
   RunRecord,
+  SearchProvider,
   SkillGenome,
   SkillRecord,
   SourceConnector,
@@ -53,6 +57,45 @@ export const apiHealth = () => request<{ status: string; materialNormalizer: Nor
 
 export const listDiscoveryConnectors = () =>
   request<{ connectors: SourceConnector[] }>('/api/discovery/connectors')
+
+export const listDiscoveryProviders = () =>
+  request<{ providers: SearchProvider[] }>('/api/discovery/providers')
+
+export const createDiscoverySearchRun = (payload: {
+  query: string
+  providerIds: string[]
+  scopeIds?: string[]
+  includeLocalExamples?: boolean
+}) => request<DiscoverySearchSnapshot>('/api/discovery/search-runs', {
+  method: 'POST',
+  body: JSON.stringify({
+    query: payload.query,
+    providerIds: payload.providerIds,
+    scopeIds: payload.scopeIds ?? ['all_web_skills'],
+    includeLocalExamples: payload.includeLocalExamples ?? false,
+    filters: {},
+  }),
+})
+
+export const getDiscoverySearchRun = (runId: string) =>
+  request<DiscoverySearchSnapshot>(`/api/discovery/search-runs/${encodeURIComponent(runId)}`)
+
+export const discoveryEventsUrl = (runId: string) =>
+  apiPath(`/api/discovery/search-runs/${encodeURIComponent(runId)}/events`)
+
+export const previewDiscoveryCandidate = (candidateId: string) =>
+  request<DiscoveryCandidatePreview>(`/api/discovery/candidates/${encodeURIComponent(candidateId)}/preview`)
+
+export const importDiscoveryBatch = (payload: {
+  searchRunId: string
+  candidateIds: string[]
+  expectedRunRevision: number
+  acknowledgedWarnings: Array<{ candidateId: string; code: string }>
+}) => request<DiscoveryImportBatch>('/api/discovery/import-batches', {
+  method: 'POST',
+  headers: { 'Idempotency-Key': crypto.randomUUID() },
+  body: JSON.stringify(payload),
+})
 
 export const searchDiscovery = (query: string, sourceIds: string[]) =>
   request<{ results: DiscoveryCandidate[]; status: ProviderStatus[] }>('/api/discovery/search', {

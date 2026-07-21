@@ -12,6 +12,30 @@ class SearchRequest(StrictModel):
     sourceIds: list[str] = Field(default_factory=lambda: ["builtin", "github"])
 
 
+class DiscoverySearchRunRequest(StrictModel):
+    query: str = Field(min_length=2, max_length=1000)
+    providerIds: list[str] = Field(
+        default_factory=lambda: ["github", "brave", "tavily", "exa"],
+        min_length=1,
+        max_length=4,
+    )
+    scopeIds: list[str] = Field(default_factory=lambda: ["all_web_skills"], max_length=8)
+    includeLocalExamples: bool = False
+    filters: dict[str, Any] = Field(default_factory=dict)
+
+
+class DiscoveryWarningAcknowledgement(StrictModel):
+    candidateId: str
+    code: str
+
+
+class DiscoveryImportBatchRequest(StrictModel):
+    searchRunId: str
+    candidateIds: list[str] = Field(min_length=1, max_length=30)
+    expectedRunRevision: int = Field(ge=1)
+    acknowledgedWarnings: list[DiscoveryWarningAcknowledgement] = Field(default_factory=list)
+
+
 class ImportRequest(StrictModel):
     candidate: dict[str, Any]
 

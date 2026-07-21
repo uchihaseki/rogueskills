@@ -28,11 +28,17 @@ npm start
 - Skill Discovery：http://127.0.0.1:5173/discovery.html
 - OpenAPI：http://127.0.0.1:5173/api/docs
 
-默认数据库为 `data/rogueskills.db`。GitHub Token 只配置在 Python 后端：
+默认数据库为 `data/rogueskills.db`。真实 Skill Discovery 可以同时调用 GitHub、Brave、Tavily 和 Exa 的正式搜索 API；所有 Key 只配置在 Python 后端：
 
 ```bash
-ROGUESKILLS_GITHUB_TOKEN=your_token npm start
+ROGUESKILLS_GITHUB_TOKEN=your_github_token \
+ROGUESKILLS_BRAVE_API_KEY=your_brave_key \
+ROGUESKILLS_TAVILY_API_KEY=your_tavily_key \
+ROGUESKILLS_EXA_API_KEY=your_exa_key \
+npm start
 ```
+
+未配置的 Provider 会在 Discovery 页面显示 `NOT CONFIGURED` 并禁止选择。远程搜索失败时不会回退到本地种子结果。开发环境至少建议配置 GitHub 和一个 Web Search API；生产验收建议四个都配置。
 
 SOP 转换使用 OpenAI-compatible LLM 做语义归一化：
 

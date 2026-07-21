@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     port: int = 5173
     database_url: str = Field(default=f"sqlite:///{PROJECT_ROOT / 'data' / 'rogueskills.db'}")
     github_token: str | None = None
+    brave_api_key: str | None = None
+    tavily_api_key: str | None = None
+    exa_api_key: str | None = None
+    search_provider_timeout_seconds: float = Field(default=12, ge=2, le=60)
+    search_run_max_provider_requests: int = Field(default=16, ge=1, le=64)
+    search_run_max_results_per_provider: int = Field(default=8, ge=1, le=20)
+    search_run_retention_seconds: int = Field(default=86_400, ge=300, le=604_800)
     llm_base_url: str | None = None
     llm_api_key: str | None = None
     llm_model: str | None = None

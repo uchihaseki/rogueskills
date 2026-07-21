@@ -91,10 +91,77 @@ export interface SourceConnector {
 }
 
 export interface ProviderStatus {
-  sourceId: string
+  sourceId?: string
+  providerId?: string
   state: string
   count?: number
   message?: string
+}
+
+export interface SearchProvider {
+  id: 'github' | 'brave' | 'tavily' | 'exa' | string
+  name: string
+  shortName: string
+  description: string
+  configured: boolean
+  available: boolean
+  state: string
+  capabilities: string[]
+}
+
+export interface DiscoverySearchRun {
+  id: string
+  query: string
+  state: string
+  providerIds: string[]
+  scopeIds: string[]
+  includeLocalExamples: boolean
+  revision: number
+  policyVersion: string
+  counts: {
+    sourceHits: number
+    artifacts: number
+    candidates: number
+    recommended: number
+    blocked: number
+  }
+  createdAt: string
+  expiresAt: string
+}
+
+export interface DiscoveryQueryPlan {
+  id: string
+  text: string
+  intent: string
+}
+
+export interface DiscoverySourceHit {
+  id: string
+  kind: string
+  title: string
+  url: string
+  canonicalUrl: string
+  publisher: string
+  snippet?: string
+  status: string
+  error?: string
+  discoveredAt: string
+  artifactIds?: string[]
+  discoveredBy: Array<{
+    providerId: string
+    queryId: string
+    rank?: number
+    snippet?: string
+  }>
+}
+
+export interface DiscoveryEvent {
+  eventId: number
+  runId: string
+  revision: number
+  timestamp: string
+  type: string
+  payload: Record<string, unknown>
 }
 
 export interface DiscoveryCandidate {
@@ -118,7 +185,54 @@ export interface DiscoveryCandidate {
     convertibility: number
   }
   risk?: { level: string; reasons: string[] }
+  sourceHitId?: string
+  sourceHitIds?: string[]
+  artifactPath?: string
+  discoveredBy?: DiscoverySourceHit['discoveredBy']
+  selection?: {
+    eligible: boolean
+    recommended: boolean
+    reasonCodes: string[]
+  }
+  previewState?: string
+  snapshot?: {
+    status: string
+    fingerprint?: string | null
+    artifactPaths?: string[]
+    revision?: string
+    fetchedAt?: string
+  }
   [key: string]: unknown
+}
+
+export interface DiscoverySearchSnapshot {
+  run: DiscoverySearchRun
+  queries: DiscoveryQueryPlan[]
+  providerStatus: ProviderStatus[]
+  sources: DiscoverySourceHit[]
+  candidates: DiscoveryCandidate[]
+  eventsUrl?: string
+}
+
+export interface DiscoveryCandidatePreview {
+  candidate: DiscoveryCandidate
+  source: DiscoverySourceHit
+  rawContent: string
+  genome: SkillGenome
+}
+
+export interface DiscoveryImportBatch {
+  batchId: string
+  searchRunId: string
+  summary: Record<'saved' | 'existing' | 'rejected' | 'failed', number>
+  items: Array<{
+    candidateId: string
+    state: 'saved' | 'existing' | 'rejected' | 'failed'
+    skillId?: string
+    reasonCode?: string
+    message?: string
+  }>
+  createdAt: string
 }
 
 export interface NormalizerStatus {
