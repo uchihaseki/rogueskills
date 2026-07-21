@@ -162,18 +162,20 @@ watch(() => props.objectiveMode, animateStats)
           </div>
         </div>
 
-        <div class="deployment-strip">
-          <div class="map-code-console">
-            <label for="run-seed">MAP CODE</label>
-            <div><span aria-hidden="true">#</span><input id="run-seed" v-model="controller.seed" spellcheck="false" maxlength="32"><button type="button" aria-label="随机地图代码" title="随机地图代码" @click="controller.randomizeSeed">↻</button></div>
-          </div>
-          <button class="deploy-button" type="button" :disabled="controller.actionPending" @click="controller.startRun()">
+        <div class="map-code-console mission-map-code">
+          <label for="run-seed">MAP CODE</label>
+          <div><span aria-hidden="true">#</span><input id="run-seed" v-model="controller.seed" spellcheck="false" maxlength="32"><button type="button" aria-label="随机地图代码" title="随机地图代码" @click="controller.randomizeSeed">↻</button></div>
+        </div>
+
+        <div class="mission-deploy-actions" :class="{ 'has-saved-run': controller.savedRun }">
+          <button class="deploy-button mission-ready-button" type="button" :disabled="controller.actionPending" @click="controller.startRun()">
             <span><small>READY TO DEPLOY</small>{{ controller.actionPending ? 'GENERATING...' : '进入 EVOLUTION RUN' }}</span><b>▶</b>
           </button>
+          <button v-if="controller.savedRun" class="pixel-continue-button mission-continue-button" type="button" @click="controller.continueRun">
+            <span><small>RESUME MISSION</small>载入上次任务</span>
+            <b>ACT {{ controller.savedRun.actIndex + 1 }}</b>
+          </button>
         </div>
-        <button v-if="controller.savedRun" class="pixel-continue-button" type="button" @click="controller.continueRun">
-          载入上次任务 · ACT {{ controller.savedRun.actIndex + 1 }} · {{ controller.savedRun.seed }}
-        </button>
       </article>
     </section>
 

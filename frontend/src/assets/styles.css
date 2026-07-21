@@ -1135,8 +1135,10 @@ button {
 }
 
 .mission-board {
+  display: flex;
   min-height: 0;
   padding: 16px 18px;
+  flex-direction: column;
   overflow-y: auto;
 }
 
@@ -1352,6 +1354,70 @@ button {
   grid-template-columns: minmax(220px, 0.8fr) minmax(250px, 1.2fr);
   gap: 10px;
   margin-top: 12px;
+}
+
+.mission-map-code {
+  margin-top: 12px;
+}
+
+.mission-deploy-actions {
+  display: grid;
+  margin-top: auto;
+  padding-top: 14px;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  border-top: 2px solid #2d3a30;
+}
+
+.mission-deploy-actions.has-saved-run {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.mission-ready-button,
+.mission-continue-button {
+  min-height: 58px;
+}
+
+.mission-continue-button {
+  display: flex;
+  width: 100%;
+  margin-top: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-width: 3px;
+  text-align: left;
+}
+
+.mission-continue-button span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  color: #aab6ac;
+}
+
+.mission-continue-button small {
+  color: #627066;
+  font: 800 7px var(--mono);
+  letter-spacing: 0.12em;
+}
+
+.mission-continue-button b {
+  flex: none;
+  color: var(--lime);
+  font: 900 10px var(--mono);
+  white-space: nowrap;
+}
+
+.mission-continue-button:hover,
+.mission-continue-button:focus-visible {
+  border-color: var(--lime);
+  outline: 0;
+  color: var(--lime);
+  background: #101912;
+  transform: translate(-2px, -2px);
 }
 
 .map-code-console > label {
@@ -4257,6 +4323,15 @@ button {
     width: 100%;
   }
 
+  .mission-deploy-actions.has-saved-run {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mission-ready-button,
+  .mission-continue-button {
+    min-height: 54px;
+  }
+
   .objective-character-summary {
     display: grid;
     grid-template-columns: 70px 1fr;
@@ -4377,8 +4452,14 @@ button {
   }
 
   .contract-list,
-  .deployment-strip {
+  .deployment-strip,
+  .mission-deploy-actions.has-saved-run {
     grid-template-columns: 1fr;
+  }
+
+  .mission-ready-button,
+  .mission-continue-button {
+    min-height: 50px;
   }
 
   .contract-card {
