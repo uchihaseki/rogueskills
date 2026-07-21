@@ -1176,6 +1176,7 @@ button {
 
 .contract-card {
   --contract-accent: var(--mint);
+  --contract-accent-shadow: rgba(92, 225, 161, 0.3);
   position: relative;
   display: grid;
   min-width: 0;
@@ -1190,8 +1191,15 @@ button {
   cursor: pointer;
 }
 
-.contract-speed { --contract-accent: var(--orange); }
-.contract-efficient { --contract-accent: var(--cyan); }
+.contract-speed {
+  --contract-accent: var(--orange);
+  --contract-accent-shadow: rgba(255, 173, 102, 0.3);
+}
+
+.contract-efficient {
+  --contract-accent: var(--cyan);
+  --contract-accent-shadow: rgba(110, 214, 209, 0.3);
+}
 
 .contract-card:hover,
 .contract-card:focus-within,
@@ -1199,7 +1207,7 @@ button {
   border-color: var(--contract-accent);
   color: var(--text);
   background: #121d15;
-  box-shadow: inset 0 -4px 0 color-mix(in srgb, var(--contract-accent) 30%, transparent);
+  box-shadow: inset 0 -4px 0 var(--contract-accent-shadow);
   transform: translateY(-2px);
 }
 

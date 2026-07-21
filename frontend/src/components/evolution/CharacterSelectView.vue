@@ -6,7 +6,7 @@ const props = defineProps<{
   controller: EvolutionController
   objectiveMode?: boolean
 }>()
-const emit = defineEmits<{ back: []; next: [] }>()
+const emit = defineEmits<{ back: []; next: []; deploy: [] }>()
 const statsRoot = ref<HTMLElement | null>(null)
 
 const capabilityProfile = () => props.controller.selectedSkill?.capabilityProfile
@@ -168,7 +168,7 @@ watch(() => props.objectiveMode, animateStats)
         </div>
 
         <div class="mission-deploy-actions" :class="{ 'has-saved-run': controller.savedRun }">
-          <button class="deploy-button mission-ready-button" type="button" :disabled="controller.actionPending" @click="controller.startRun()">
+          <button class="deploy-button mission-ready-button" type="button" :disabled="controller.actionPending" @click="emit('deploy')">
             <span><small>READY TO DEPLOY</small>{{ controller.actionPending ? 'GENERATING...' : '进入 EVOLUTION RUN' }}</span><b>▶</b>
           </button>
           <button v-if="controller.savedRun" class="pixel-continue-button mission-continue-button" type="button" @click="controller.continueRun">
