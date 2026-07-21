@@ -11,8 +11,12 @@ import httpx
 from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 
+from rogueskills.adapters.agent_preset_exporter import (
+    AgentPresetExportTarget,
+    build_agent_preset_export,
+)
 from rogueskills.adapters.agent_preset_loader import (
     AgentPresetIntegrityError,
     load_agent_preset,
@@ -413,6 +417,27 @@ def create_app(
             content=preset,
             headers={
                 "Content-Disposition": f'attachment; filename="{preset_id}.json"',
+                "Cache-Control": "no-store",
+            },
+        )
+
+    @app.get("/api/agent-presets/{preset_id}/export/{target}")
+    def export_agent_preset_package(
+        preset_id: str, target: AgentPresetExportTarget
+    ) -> Response:
+        try:
+            artifact = build_agent_preset_export(presets.get(preset_id), target)
+        except AgentPresetIntegrityError as error:
+            raise ApplicationError(
+                "AGENT_PRESET_INTEGRITY_FAILED",
+                "AgentPreset 内容校验失败。",
+                status_code=409,
+            ) from error
+        return Response(
+            content=artifact.content,
+            media_type=artifact.media_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{artifact.filename}"',
                 "Cache-Control": "no-store",
             },
         )

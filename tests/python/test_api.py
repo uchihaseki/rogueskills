@@ -1,5 +1,8 @@
 import asyncio
+import json
+from io import BytesIO
 from pathlib import Path
+from zipfile import ZipFile
 
 import httpx
 from fastapi.testclient import TestClient
@@ -226,6 +229,24 @@ def test_victory_run_can_save_export_and_load_agent_preset() -> None:
         assert exported.status_code == 200
         assert f'{preset["id"]}.json' in exported.headers["content-disposition"]
         assert exported.json()["digest"] == preset["digest"]
+
+        package = api.get(f"/api/agent-presets/{preset['id']}/export/universal")
+        assert package.status_code == 200
+        assert package.headers["content-type"] == "application/zip"
+        assert f'{preset["id"]}-universal.zip' in package.headers["content-disposition"]
+        with ZipFile(BytesIO(package.content)) as archive:
+            names = archive.namelist()
+            assert "AGENTS.md" in names
+            assert "CLAUDE.md" in names
+            manifest_path = next(
+                name for name in names if name.endswith("/export-manifest.json")
+            )
+            manifest = json.loads(archive.read(manifest_path))
+            assert manifest["presetDigest"] == preset["digest"]
+            assert manifest["target"] == "universal"
+
+        invalid_package = api.get(f"/api/agent-presets/{preset['id']}/export/unknown")
+        assert invalid_package.status_code == 422
 
         loaded = api.get(f"/api/agent-presets/{preset['id']}/runtime-config")
         assert loaded.status_code == 200

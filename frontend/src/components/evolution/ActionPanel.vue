@@ -72,7 +72,8 @@ const draft = computed(() => run.value.currentDraft
           <div class="preset-saved"><span>PROJECT ARTIFACT · SAVED</span><strong>{{ controller.agentPreset.project.name }}</strong><small>{{ controller.agentPreset.id }}</small></div>
           <div class="preset-stats"><div><span>Workflow</span><strong>{{ controller.agentPreset.workflow.length }}</strong></div><div><span>Tools</span><strong>{{ controller.agentPreset.tools.length }}</strong></div><div><span>Rules</span><strong>{{ controller.agentPreset.rules.constraints.length + controller.agentPreset.rules.retry.length + controller.agentPreset.rules.fallback.length + controller.agentPreset.rules.outputValidation.length }}</strong></div></div>
           <p class="preset-warning">Candidate · capability simulation · runtimeVerified=false</p>
-          <button class="primary-button" @click="controller.exportAgentPreset">导出项目产物 JSON</button>
+          <label>导出类型<select v-model="controller.presetExportTarget" aria-label="导出类型"><option value="codex">Codex（AGENTS.md）</option><option value="claude-code">Claude Code（CLAUDE.md）</option><option value="universal">Universal（双平台）</option></select></label>
+          <button class="primary-button" @click="controller.exportAgentPreset">导出项目产物包</button>
         </template>
       </section>
       <button class="primary-button secondary-run-button" @click="controller.retrySeed">使用相同 Seed 重新构筑</button><button class="text-button" @click="controller.returnToSetup">返回 Run 设置</button>

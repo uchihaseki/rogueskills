@@ -1,5 +1,6 @@
 import type {
   AgentPreset,
+  AgentPresetExportTarget,
   DiscoveryCandidate,
   EvolutionCatalog,
   FinanceBootstrapResult,
@@ -171,8 +172,13 @@ export const listAgentPresets = () =>
 export const getAgentPreset = (presetId: string) =>
   request<{ preset: AgentPreset }>(`/api/agent-presets/${encodeURIComponent(presetId)}`)
 
-export async function downloadAgentPreset(presetId: string): Promise<void> {
-  const response = await fetch(apiPath(`/api/agent-presets/${encodeURIComponent(presetId)}/export`))
+export async function downloadAgentPreset(
+  presetId: string,
+  target: AgentPresetExportTarget,
+): Promise<void> {
+  const response = await fetch(
+    apiPath(`/api/agent-presets/${encodeURIComponent(presetId)}/export/${encodeURIComponent(target)}`),
+  )
   if (!response.ok) {
     const payload = await response.json().catch(() => ({})) as ErrorPayload
     const detail = payload.error
@@ -189,7 +195,7 @@ export async function downloadAgentPreset(presetId: string): Promise<void> {
   const blobUrl = URL.createObjectURL(await response.blob())
   const link = document.createElement('a')
   link.href = blobUrl
-  link.download = `${presetId}.json`
+  link.download = `${presetId}-${target}.zip`
   document.body.appendChild(link)
   link.click()
   link.remove()

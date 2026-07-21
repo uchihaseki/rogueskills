@@ -266,6 +266,8 @@ export interface AgentPresetProject {
   scenario: string
 }
 
+export type AgentPresetExportTarget = 'codex' | 'claude-code' | 'universal'
+
 export interface AgentPresetWorkflowStep {
   id: string
   order: number
