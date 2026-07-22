@@ -14,6 +14,7 @@ import {
 } from '@/api/client'
 import type {
   AgentPreset,
+  AgentPresetExportTarget,
   Evolution,
   EvolutionCatalog,
   EvolutionRun,
@@ -59,6 +60,7 @@ export function useEvolutionRun() {
   const agentPreset = ref<AgentPreset | null>(null)
   const presetPending = ref(false)
   const presetError = ref('')
+  const presetExportTarget = ref<AgentPresetExportTarget>('universal')
   const presetProjectName = ref('')
   const presetProjectDescription = ref('')
   const presetScenario = ref('')
@@ -364,7 +366,7 @@ export function useEvolutionRun() {
   async function exportAgentPreset(): Promise<void> {
     if (!agentPreset.value) return
     try {
-      await downloadAgentPreset(agentPreset.value.id)
+      await downloadAgentPreset(agentPreset.value.id, presetExportTarget.value)
     } catch (error) {
       report(error, 'AGENT_PRESET_EXPORT_FAILED')
     }
@@ -376,7 +378,7 @@ export function useEvolutionRun() {
     exportAgentPreset,
     evolutionById, evolutionProgress, initialSkills, initialize, libraryState, loadingError,
     MAX_STABILITY, monsterById, mutationById, nodeState, objectiveScore, randomizeSeed,
-    presetError, presetPending, presetProjectDescription, presetProjectName, presetScenario,
+    presetError, presetExportTarget, presetPending, presetProjectDescription, presetProjectName, presetScenario,
     resolveNode, retrySeed, returnToSetup, run, savedRun, saveAgentPreset, seed, selectNode, selectedModeId,
     selectedMonsterIds, selectedNode, selectedScenarioId, selectedSkill, selectedSkillId,
     skipMutation, startRun, toggleMonster,

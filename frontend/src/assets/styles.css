@@ -3862,7 +3862,8 @@ button {
 }
 
 .preset-builder input,
-.preset-builder textarea {
+.preset-builder textarea,
+.preset-builder select {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 2px;
@@ -3875,8 +3876,13 @@ button {
 }
 
 .preset-builder input:focus,
-.preset-builder textarea:focus {
+.preset-builder textarea:focus,
+.preset-builder select:focus {
   border-color: rgba(185, 242, 95, 0.52);
+}
+
+.preset-builder select {
+  cursor: pointer;
 }
 
 .preset-stats {
