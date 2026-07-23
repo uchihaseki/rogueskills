@@ -38,6 +38,16 @@
   border-bottom: 3px solid var(--run-pixel-line);
 }
 
+.pixel-run-theme .run-identity {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: calc(100% - 360px);
+  justify-content: center;
+  white-space: nowrap;
+}
+
 .pixel-run-theme .brand,
 .pixel-run-theme .run-identity,
 .pixel-run-theme .nav-button,
