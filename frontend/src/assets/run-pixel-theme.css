@@ -165,6 +165,31 @@
   background: repeating-linear-gradient(90deg, var(--purple) 0 5px, transparent 5px 7px);
 }
 
+.pixel-run-theme .resource-bar b,
+.pixel-run-theme .stat-row i b,
+.pixel-run-theme .recipe i b,
+.pixel-run-theme .requirement-list i b,
+.pixel-run-theme .auto-progress-track b {
+  transition: width 420ms steps(10, end);
+  animation: pixel-bar-shimmer 1.8s steps(8, end) infinite;
+}
+
+@keyframes pixel-bar-shimmer {
+  0%, 100% { filter: brightness(0.9); }
+  50% { filter: brightness(1.18); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-run-theme .resource-bar b,
+  .pixel-run-theme .stat-row i b,
+  .pixel-run-theme .recipe i b,
+  .pixel-run-theme .requirement-list i b,
+  .pixel-run-theme .auto-progress-track b {
+    transition: none;
+    animation: none;
+  }
+}
+
 .pixel-run-theme .game-grid,
 .pixel-run-theme .log-panel,
 .pixel-run-theme .run-footer {
