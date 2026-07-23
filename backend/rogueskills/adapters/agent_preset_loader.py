@@ -45,6 +45,6 @@ def load_agent_preset(preset: dict[str, Any]) -> dict[str, Any]:
         "tools": validated["tools"],
         "rules": rules,
         "runtimeDefaults": validated["runtimeDefaults"],
-        "runtimeVerified": False,
+        "runtimeVerified": bool(validated["evaluationEvidence"]["runtimeVerified"]),
     }
     return LoadedAgentConfig.model_validate(loaded).model_dump(mode="json")

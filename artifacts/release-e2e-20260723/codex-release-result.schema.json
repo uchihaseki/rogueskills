@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "mcpServer": {"type": "string"},
+    "caseId": {"type": "string"},
+    "casePackRef": {"type": "string"},
+    "mode": {"type": "string"},
+    "replayCaseId": {"type": "string"},
+    "status": {"type": "string"},
+    "recommendation": {"type": "string"},
+    "runtimeVerified": {"type": "boolean"},
+    "finalScore": {"type": "number"},
+    "hardGatesPassed": {"type": "boolean"},
+    "sourceCount": {"type": "integer"},
+    "factCount": {"type": "integer"},
+    "checkRunCount": {"type": "integer"},
+    "failedCaseIds": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "required": [
+    "mcpServer",
+    "caseId",
+    "casePackRef",
+    "mode",
+    "replayCaseId",
+    "status",
+    "recommendation",
+    "runtimeVerified",
+    "finalScore",
+    "hardGatesPassed",
+    "sourceCount",
+    "factCount",
+    "checkRunCount",
+    "failedCaseIds"
+  ]
+}

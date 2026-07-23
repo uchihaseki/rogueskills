@@ -142,6 +142,67 @@ class AgentPresetRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class FinanceCaseRunRow(Base):
+    __tablename__ = "finance_case_runs"
+    __table_args__ = (
+        Index("idx_finance_case_runs_created", "created_at"),
+        Index("idx_finance_case_runs_skill", "skill_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), nullable=False)
+    as_of_date: Mapped[str] = mapped_column(String(10), nullable=False)
+    mode: Mapped[str] = mapped_column(String(32), nullable=False)
+    skill_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("skills.id", ondelete="RESTRICT"), nullable=False
+    )
+    base_skill_version_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("skill_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    evolved_skill_version_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("skill_versions.id", ondelete="RESTRICT")
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    phase: Mapped[str] = mapped_column(String(32), nullable=False)
+    state_json: Mapped[str] = mapped_column(Text, nullable=False)
+    source_bundle_json: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class CaseRunRow(Base):
+    __tablename__ = "case_runs"
+    __table_args__ = (
+        Index("idx_case_runs_created", "created_at"),
+        Index("idx_case_runs_pack_created", "case_pack_id", "created_at"),
+        Index("idx_case_runs_skill_created", "skill_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    case_pack_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    case_pack_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    input_json: Mapped[str] = mapped_column(Text, nullable=False)
+    mode: Mapped[str] = mapped_column(String(32), nullable=False)
+    replay_case_id: Mapped[str | None] = mapped_column(String(160))
+    skill_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("skills.id", ondelete="RESTRICT"), nullable=False
+    )
+    base_skill_version_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("skill_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    evolved_skill_version_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("skill_versions.id", ondelete="RESTRICT")
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    phase: Mapped[str] = mapped_column(String(64), nullable=False)
+    state_json: Mapped[str] = mapped_column(Text, nullable=False)
+    source_bundle_json: Mapped[str | None] = mapped_column(Text)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 def create_database(database_url: str) -> tuple[Engine, sessionmaker[Any]]:
     url = make_url(database_url)
     if url.get_backend_name() == "sqlite" and url.database not in {None, "", ":memory:"}:

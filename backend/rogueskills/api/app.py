@@ -5,6 +5,7 @@ import json
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from fastapi import FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from pydantic import ValidationError
 
 from rogueskills.adapters.agent_preset_exporter import (
     AgentPresetExportTarget,
@@ -23,18 +25,32 @@ from rogueskills.adapters.agent_preset_loader import (
     load_agent_preset,
 )
 from rogueskills.adapters.discovery_gateway import DiscoveryGateway
+from rogueskills.adapters.finance_data import SecFinanceDataGateway
+from rogueskills.adapters.github_release_data import GithubReleaseReadinessGateway
+from rogueskills.adapters.llm_finance_analyst import OpenAICompatibleFinanceAnalyst
 from rogueskills.adapters.llm_material_normalizer import OpenAICompatibleMaterialNormalizer
+from rogueskills.agents.finance_analyst import FinanceAnalyst, UnavailableFinanceAnalyst
 from rogueskills.agents.material_normalizer import MaterialNormalizer, UnavailableMaterialNormalizer
+from rogueskills.application.case_artifact_builder import DigestRuntimeArtifactBuilder
+from rogueskills.application.case_run_service import CaseRunService
 from rogueskills.application.discovery_service import DiscoverySearchService
 from rogueskills.application.errors import ApplicationError
+from rogueskills.application.finance_artifact_builder import FinanceRuntimeArtifactBuilder
 from rogueskills.application.finance_bootstrap import FinanceBootstrapService
+from rogueskills.application.finance_case_service import FinanceCaseService
 from rogueskills.application.preset_service import AgentPresetService
 from rogueskills.application.services import MaterialService, RunService, SkillService
+from rogueskills.case_packs.finance import build_finance_case_pack
+from rogueskills.case_packs.release import build_release_readiness_case_pack
 from rogueskills.domain.benchmark import run_scenario_benchmark
+from rogueskills.domain.case_pack import CasePackRegistry
 from rogueskills.domain.catalogs import SEED_SKILLS, SOURCE_CONNECTORS
 from rogueskills.domain.evolution import public_catalog
 from rogueskills.domain.genome import capability_profile_from_genome, validate_skill_genome
+from rogueskills.infrastructure.case_run_repository import CaseRunRepository
+from rogueskills.infrastructure.case_store import CompatibleCaseRunStore
 from rogueskills.infrastructure.database import create_database
+from rogueskills.infrastructure.finance_case_repository import FinanceCaseRepository
 from rogueskills.infrastructure.preset_repository import AgentPresetRepository
 from rogueskills.infrastructure.repository import SkillRepository
 from rogueskills.settings import Settings
@@ -42,6 +58,8 @@ from rogueskills.settings import Settings
 from .models import (
     ChooseMutationRequest,
     CreateAgentPresetRequest,
+    CreateCaseRunRequest,
+    CreateFinanceCaseRequest,
     CreateRunRequest,
     DiscoveryImportBatchRequest,
     DiscoverySearchRunRequest,
@@ -49,6 +67,7 @@ from .models import (
     ImportRequest,
     MaterialConvertRequest,
     PromoteRequest,
+    ReplayCaseRunRequest,
     RunRevisionRequest,
     SearchRequest,
     SelectNodeRequest,
@@ -62,11 +81,17 @@ def create_app(
     *,
     http_client: httpx.AsyncClient | None = None,
     material_normalizer: MaterialNormalizer | None = None,
+    finance_analyst: FinanceAnalyst | None = None,
+    finance_data_gateway: SecFinanceDataGateway | None = None,
+    release_data_gateway: GithubReleaseReadinessGateway | None = None,
 ) -> FastAPI:
     config = config or Settings()
     engine, sessions = create_database(config.database_url)
     repository = SkillRepository(sessions)
     preset_repository = AgentPresetRepository(sessions)
+    finance_case_repository = FinanceCaseRepository(sessions)
+    case_run_repository = CaseRunRepository(sessions)
+    case_store = CompatibleCaseRunStore(case_run_repository, finance_case_repository)
     skills = SkillService(repository)
     runs = RunService(repository)
     presets = AgentPresetService(repository, preset_repository)
@@ -108,12 +133,82 @@ def create_app(
         skills=skills,
         repository=repository,
     )
+    if finance_analyst is None:
+        finance_analyst = (
+            OpenAICompatibleFinanceAnalyst(
+                client,
+                base_url=config.llm_base_url,
+                model=config.llm_model,
+                api_key=config.llm_api_key,
+                timeout_seconds=config.llm_timeout_seconds,
+            )
+            if config.llm_base_url and config.llm_model
+            else UnavailableFinanceAnalyst()
+        )
+    resolved_finance_data_gateway = finance_data_gateway or SecFinanceDataGateway(
+        client, sec_user_agent=config.sec_user_agent
+    )
+    case_pack_registry = CasePackRegistry()
+    finance_artifact_builder = FinanceRuntimeArtifactBuilder(repository, presets)
+    finance_case_pack = case_pack_registry.register(
+        build_finance_case_pack(
+            gateway=resolved_finance_data_gateway,
+            analyst=finance_analyst,
+            artifact_builder=finance_artifact_builder,
+        )
+    )
+    case_pack_registry.register(
+        build_release_readiness_case_pack(
+            gateway=release_data_gateway
+            or GithubReleaseReadinessGateway(client, token=config.github_token),
+            artifact_builder=DigestRuntimeArtifactBuilder(),
+        )
+    )
+    case_runner = CaseRunService(skills=repository, cases=case_store)
+    finance_cases = FinanceCaseService(
+        analyst=finance_analyst,
+        skills=repository,
+        case_pack=finance_case_pack,
+        runner=case_runner,
+    )
     search_cache: dict[str, tuple[float, dict[str, Any]]] = {}
     automatic_run_tasks: dict[str, asyncio.Task[None]] = {}
 
     for seed in SEED_SKILLS:
         if not repository.get_skill(seed["id"]):
             repository.save_skill(seed, source_id="seed", trusted_status=True)
+
+    def resolve_case_skill(
+        *, skill_id: str, skill_version_id: str | None, auto_evolve: bool
+    ) -> dict[str, Any]:
+        skill = repository.get_skill(skill_id)
+        if not skill:
+            raise ApplicationError("SKILL_NOT_FOUND", "Skill 不存在。", status_code=404)
+        if skill_version_id is None:
+            return skill
+        version = repository.get_skill_version(skill_version_id)
+        if not version or version["skillId"] != skill_id:
+            raise ApplicationError(
+                "SKILL_VERSION_NOT_FOUND", "Skill Version 不存在或不属于该 Skill。", status_code=404
+            )
+        if version["genome"].get("status") != "initial":
+            raise ApplicationError(
+                "SKILL_VERSION_NOT_INITIAL",
+                "只有历史上已进入 Initial 状态的 Skill Version 可以固定执行。",
+                status_code=409,
+            )
+        if auto_evolve and skill["currentVersionId"] != skill_version_id:
+            raise ApplicationError(
+                "PINNED_SKILL_CANNOT_EVOLVE",
+                "固定的历史 Skill Version 不能执行 autoEvolve；请使用当前版本。",
+                status_code=409,
+                details={"currentVersionId": skill["currentVersionId"]},
+            )
+        return {
+            **skill,
+            "currentVersionId": version["id"],
+            "genome": version["genome"],
+        }
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -145,6 +240,10 @@ def create_app(
     app.state.settings = config
     app.state.repository = repository
     app.state.preset_repository = preset_repository
+    app.state.finance_case_repository = finance_case_repository
+    app.state.case_run_repository = case_run_repository
+    app.state.case_store = case_store
+    app.state.case_pack_registry = case_pack_registry
 
     @app.middleware("http")
     async def request_context(request: Request, call_next: Any) -> Any:
@@ -320,6 +419,268 @@ def create_app(
             sop_ids=payload.sopIds,
             auto_promote=payload.autoPromote,
         )
+
+    @app.get("/api/finance/cases/preflight")
+    def finance_case_preflight() -> dict[str, Any]:
+        return finance_cases.preflight()
+
+    @app.get("/api/case-packs")
+    def list_case_packs() -> dict[str, Any]:
+        return {"casePacks": case_pack_registry.descriptors()}
+
+    @app.get("/api/case-packs/{case_pack_id}")
+    def get_case_pack(case_pack_id: str, version: str | None = None) -> dict[str, Any]:
+        try:
+            pack = case_pack_registry.get(case_pack_id, version)
+        except ValueError as error:
+            raise ApplicationError(
+                "CASE_PACK_NOT_FOUND", "Case Pack 不存在。", status_code=404
+            ) from error
+        return {
+            "casePack": {
+                **next(item for item in case_pack_registry.descriptors() if item["ref"] == pack.ref),
+                "inputSchema": pack.input_model.model_json_schema()
+                if pack.input_model is not None
+                else None,
+                "runtimePolicy": pack.runtime_policy.model_dump(mode="json"),
+                "skillPolicy": pack.skill_policy.model_dump(mode="json"),
+            }
+        }
+
+    @app.get("/api/case-runs/preflight")
+    def generic_case_preflight(
+        casePackId: str, casePackVersion: str | None = None
+    ) -> dict[str, Any]:
+        try:
+            pack = case_pack_registry.get(casePackId, casePackVersion)
+        except ValueError as error:
+            raise ApplicationError(
+                "CASE_PACK_NOT_FOUND", "Case Pack 不存在。", status_code=404
+            ) from error
+        return {
+            "casePackId": pack.id,
+            "casePackVersion": pack.version,
+            **pack.preflight(),
+        }
+
+    @app.get("/api/case-runs")
+    def list_case_runs(
+        limit: int = Query(default=20, ge=1, le=100),
+        casePackId: str | None = None,
+    ) -> dict[str, Any]:
+        return {"caseRuns": case_store.list(limit=limit, case_pack_id=casePackId)}
+
+    @app.post("/api/case-runs", status_code=201)
+    async def create_case_run(payload: CreateCaseRunRequest) -> dict[str, Any]:
+        try:
+            pack = case_pack_registry.get(payload.casePackId, payload.casePackVersion)
+        except ValueError as error:
+            raise ApplicationError(
+                "CASE_PACK_NOT_FOUND", "Case Pack 不存在。", status_code=404
+            ) from error
+        skill = resolve_case_skill(
+            skill_id=payload.skillId,
+            skill_version_id=payload.skillVersionId,
+            auto_evolve=payload.autoEvolve,
+        )
+        try:
+            pack.validate_skill(skill)
+        except ValueError as error:
+            raise ApplicationError(
+                "CASE_PACK_SKILL_INCOMPATIBLE",
+                "Skill 不满足 Case Pack 的准入策略。",
+                status_code=409,
+            ) from error
+        try:
+            case_input = pack.validate_input(payload.input)
+        except ValidationError as error:
+            raise ApplicationError(
+                "CASE_INPUT_INVALID",
+                "Case Pack 输入不符合 Contract。",
+                status_code=422,
+                details={"errors": error.errors(include_url=False)},
+            ) from error
+        projected = pack.project_state(case_input)
+        return {
+            "caseRun": await case_runner.run(
+                pack=pack,
+                skill=skill,
+                case_input=case_input,
+                mode=payload.mode,
+                replay_case_id=payload.replayCaseId,
+                auto_evolve=payload.autoEvolve,
+                run_id_prefix="case-run",
+                initial_state_fields=projected,
+            )
+        }
+
+    @app.get("/api/case-runs/{case_id}")
+    def get_case_run(case_id: str) -> dict[str, Any]:
+        case = case_store.get(case_id)
+        if not case:
+            raise ApplicationError("CASE_RUN_NOT_FOUND", "Case Run 不存在。", status_code=404)
+        return {"caseRun": case}
+
+    @app.get("/api/case-runs/{case_id}/report")
+    def get_case_run_report(
+        case_id: str,
+        stage: str = Query(default="final", pattern="^(baseline|evolved|final)$"),
+    ) -> dict[str, Any]:
+        case = case_store.get(case_id)
+        if not case:
+            raise ApplicationError("CASE_RUN_NOT_FOUND", "Case Run 不存在。", status_code=404)
+        report = (
+            case.get("finalReport")
+            if stage == "final"
+            else (case.get(stage) or {}).get("report")
+        )
+        if not report:
+            raise ApplicationError(
+                "CASE_REPORT_NOT_AVAILABLE", "该阶段尚未生成报告。", status_code=409
+            )
+        return {"report": report}
+
+    @app.get("/api/case-runs/{case_id}/evaluation")
+    def get_case_run_evaluation(
+        case_id: str,
+        stage: str = Query(default="final", pattern="^(baseline|evolved|final)$"),
+    ) -> dict[str, Any]:
+        case = case_store.get(case_id)
+        if not case:
+            raise ApplicationError("CASE_RUN_NOT_FOUND", "Case Run 不存在。", status_code=404)
+        evaluation = (
+            case.get("finalEvaluation")
+            if stage == "final"
+            else (case.get(stage) or {}).get("evaluation")
+        )
+        if not evaluation:
+            raise ApplicationError(
+                "CASE_EVALUATION_NOT_AVAILABLE",
+                "该阶段尚未生成 Evaluation。",
+                status_code=409,
+            )
+        return {"evaluation": evaluation}
+
+    @app.get("/api/case-runs/{case_id}/artifact")
+    def get_case_run_artifact(case_id: str) -> dict[str, Any]:
+        case = case_store.get(case_id)
+        if not case:
+            raise ApplicationError("CASE_RUN_NOT_FOUND", "Case Run 不存在。", status_code=404)
+        artifact = case.get("runtimeArtifact") or case.get("agentPreset")
+        if not artifact:
+            raise ApplicationError(
+                "CASE_ARTIFACT_NOT_AVAILABLE", "Case Run 尚未生成 Artifact。", status_code=409
+            )
+        return {"artifact": artifact}
+
+    @app.post("/api/case-runs/{case_id}/replay", status_code=201)
+    async def replay_case_run(case_id: str, payload: ReplayCaseRunRequest) -> dict[str, Any]:
+        source = case_store.get(case_id)
+        if not source:
+            raise ApplicationError("CASE_RUN_NOT_FOUND", "Case Run 不存在。", status_code=404)
+        try:
+            pack = case_pack_registry.get(
+                source.get("casePackId", "finance-stock-analysis"),
+                source.get("casePackVersion"),
+            )
+        except ValueError as error:
+            raise ApplicationError(
+                "CASE_PACK_NOT_FOUND", "Case Pack 不存在。", status_code=404
+            ) from error
+        skill = resolve_case_skill(
+            skill_id=payload.skillId,
+            skill_version_id=payload.skillVersionId,
+            auto_evolve=payload.autoEvolve,
+        )
+        try:
+            pack.validate_skill(skill)
+        except ValueError as error:
+            raise ApplicationError(
+                "CASE_PACK_SKILL_INCOMPATIBLE",
+                "Skill 不满足 Case Pack 的准入策略。",
+                status_code=409,
+            ) from error
+        case_input = source.get("input") or {
+            "ticker": source.get("ticker"),
+            "asOfDate": source.get("asOfDate"),
+        }
+        return {
+            "caseRun": await case_runner.run(
+                pack=pack,
+                skill=skill,
+                case_input=case_input,
+                mode="verified_replay",
+                replay_case_id=case_id,
+                auto_evolve=payload.autoEvolve,
+                run_id_prefix="case-run",
+                initial_state_fields=pack.project_state(case_input),
+            )
+        }
+
+    @app.get("/api/finance/cases")
+    def list_finance_cases(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, Any]:
+        return {
+            "cases": case_store.list(limit=limit, case_pack_id="finance-stock-analysis")
+        }
+
+    @app.post("/api/finance/cases", status_code=201)
+    async def create_finance_case(payload: CreateFinanceCaseRequest) -> dict[str, Any]:
+        return {
+            "case": await finance_cases.run(
+                ticker=payload.ticker,
+                skill_id=payload.skillId,
+                as_of_date=payload.asOfDate or datetime.now(UTC).date(),
+                mode=payload.mode,
+                replay_case_id=payload.replayCaseId,
+                auto_evolve=payload.autoEvolve,
+            )
+        }
+
+    @app.get("/api/finance/cases/{case_id}")
+    def get_finance_case(case_id: str) -> dict[str, Any]:
+        case = case_store.get(case_id)
+        if not case:
+            raise ApplicationError(
+                "FINANCE_CASE_NOT_FOUND", "金融 Case 不存在。", status_code=404
+            )
+        return {"case": case}
+
+    @app.get("/api/finance/cases/{case_id}/report")
+    def get_finance_case_report(
+        case_id: str,
+        stage: str = Query(default="final", pattern="^(baseline|evolved|final)$"),
+    ) -> dict[str, Any]:
+        case = case_store.get(case_id)
+        if not case:
+            raise ApplicationError(
+                "FINANCE_CASE_NOT_FOUND", "金融 Case 不存在。", status_code=404
+            )
+        report = (
+            case.get("finalReport")
+            if stage == "final"
+            else (case.get(stage) or {}).get("report")
+        )
+        if not report:
+            raise ApplicationError(
+                "FINANCE_REPORT_NOT_AVAILABLE", "该阶段尚未生成报告。", status_code=409
+            )
+        return {"report": report}
+
+    @app.get("/api/finance/cases/{case_id}/agent-preset")
+    def get_finance_case_agent_preset(case_id: str) -> dict[str, Any]:
+        case = case_store.get(case_id)
+        if not case:
+            raise ApplicationError(
+                "FINANCE_CASE_NOT_FOUND", "金融 Case 不存在。", status_code=404
+            )
+        preset = case.get("agentPreset")
+        if not preset:
+            raise ApplicationError(
+                "FINANCE_CASE_PRESET_NOT_AVAILABLE",
+                "真实 Case 尚未通过，不能生成 Runtime Verified AgentPreset。",
+                status_code=409,
+            )
+        return {"preset": preset}
 
     @app.post("/api/materials/convert")
     async def convert_material(payload: MaterialConvertRequest) -> dict[str, Any]:

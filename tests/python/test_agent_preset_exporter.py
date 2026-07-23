@@ -14,8 +14,10 @@ from rogueskills.domain.evolution import create_run
 from rogueskills.domain.presets import compile_agent_preset
 
 
-def preset_fixture() -> dict:
-    genome = SEED_SKILLS[0]
+def preset_fixture(*, finance: bool = False) -> dict:
+    genome = deepcopy(SEED_SKILLS[0])
+    if finance:
+        genome["metadata"]["category"] = "finance"
     run = create_run(seed="EXPORT-001", skill_genome=genome)
     run.update(
         {
@@ -35,7 +37,7 @@ def preset_fixture() -> dict:
         base_skill_genome=genome,
         project_name="商品采集 Agent",
         project_description="从商品页面提取并校验结构化数据。",
-        scenario="电商商品信息提取",
+        scenario="public-company-financial-analysis" if finance else "电商商品信息提取",
         clock=lambda: datetime(2026, 7, 21, tzinfo=UTC),
     )
 
@@ -112,3 +114,50 @@ def test_agent_preset_export_is_deterministic_and_checks_integrity() -> None:
 
     with pytest.raises(ValueError, match="Unsupported AgentPreset export target"):
         build_agent_preset_export(preset, "unknown")  # type: ignore[arg-type]
+
+
+def test_finance_exports_include_pinned_host_mcp_configuration() -> None:
+    preset = preset_fixture(finance=True)
+    artifact = build_agent_preset_export(preset, "claude-code")
+    files = archive_files(artifact.content)
+
+    assert ".mcp.json" in files
+    assert "ROGUESKILLS-INSTALL.md" in files
+    config = json.loads(files[".mcp.json"])
+    server = config["mcpServers"]["rogueskills-finance"]
+    assert server["command"] == "rogueskills-finance-mcp"
+    assert server["env"]["ROGUESKILLS_API_BASE_URL"] == "http://127.0.0.1:5173"
+    assert (
+        server["env"]["ROGUESKILLS_DEFAULT_FINANCE_SKILL_ID"]
+        == preset["primarySkill"]["skillId"]
+    )
+    assert server["env"]["ROGUESKILLS_ALLOWED_CASE_PACKS"] == "finance-stock-analysis"
+    assert json.loads(server["env"]["ROGUESKILLS_DEFAULT_CASE_SKILL_VERSIONS"]) == {
+        "finance-stock-analysis": preset["primarySkill"]["skillVersionId"]
+    }
+    assert "finance_preflight" in files["CLAUDE.md"].decode()
+    assert "Do not extract" in files["ROGUESKILLS-INSTALL.md"].decode()
+
+    codex_files = archive_files(build_agent_preset_export(preset, "codex").content)
+    assert ".mcp.json" not in codex_files
+    assert "ROGUESKILLS-CODEX-INSTALL.md" in codex_files
+    codex_guide = codex_files["ROGUESKILLS-CODEX-INSTALL.md"].decode()
+    assert "codex mcp add" in codex_guide.replace("'", "")
+    assert "rogueskills-case-mcp" in codex_guide
+    assert "finance-stock-analysis" in codex_guide
+    assert preset["primarySkill"]["skillVersionId"] in codex_guide
+    assert "ROGUESKILLS_DEFAULT_CASE_SKILL_VERSIONS" in codex_guide
+    assert "case_preflight" in codex_files["AGENTS.md"].decode()
+
+    universal_files = archive_files(build_agent_preset_export(preset, "universal").content)
+    assert ".mcp.json" in universal_files
+    assert "ROGUESKILLS-CODEX-INSTALL.md" in universal_files
+    assert "ROGUESKILLS-INSTALL.md" in universal_files
+
+
+def test_non_case_codex_export_does_not_claim_live_mcp_support() -> None:
+    files = archive_files(build_agent_preset_export(preset_fixture(), "codex").content)
+    guide = files["ROGUESKILLS-CODEX-INSTALL.md"].decode()
+
+    assert "no MCP registration command was generated" in guide
+    assert "codex mcp add" not in guide

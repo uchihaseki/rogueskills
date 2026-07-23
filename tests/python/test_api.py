@@ -528,6 +528,7 @@ Research a claim with traceable sources.
     settings = Settings(
         database_url="sqlite://",
         project_root=Path(__file__).parents[2],
+        github_token=None,
         brave_api_key="brave-test",
         tavily_api_key="tavily-test",
         exa_api_key="exa-test",

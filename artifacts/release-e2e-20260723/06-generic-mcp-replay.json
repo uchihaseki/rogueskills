@@ -1,0 +1,165 @@
+{
+  "server": {
+    "name": "rogueskills-cases",
+    "version": "0.2.0"
+  },
+  "approvedCasePacks": [
+    "release-readiness@1.0.0"
+  ],
+  "inputSchemaAvailable": true,
+  "run": {
+    "schemaVersion": "1.0.0",
+    "caseId": "case-run-49b34ed5a0574fef81e5228c6c84208a",
+    "casePackId": "release-readiness",
+    "casePackVersion": "1.0.0",
+    "mode": "verified_replay",
+    "replayCaseId": "case-run-c13f4265126a4e2ca3eb58b5b61b61f3",
+    "skillId": "release-readiness-base",
+    "baseSkillVersionId": "release-readiness-base@1",
+    "evolvedSkillVersionId": null,
+    "status": "succeeded",
+    "phase": "completed",
+    "runtimeVerified": true,
+    "outcome": "blocked",
+    "baselineScore": 100.0,
+    "evolvedScore": null,
+    "finalScore": 100.0,
+    "scoreDelta": null,
+    "sourceCount": 4,
+    "factCount": 7,
+    "warningCount": 0,
+    "mutation": null,
+    "comparison": null,
+    "evaluation": {
+      "evaluationId": "release-eval-df8de5b7f48c42d6adfa8b4de3d5b0a7",
+      "benchmarkId": "release-readiness-real-case-v1",
+      "runtimeVerified": true,
+      "passed": true,
+      "score": 100.0,
+      "hardGatesPassed": true,
+      "failedCaseIds": []
+    },
+    "artifact": {
+      "id": "artifact-4f2b4493358fa4312db9",
+      "digest": "sha256:4f2b4493358fa4312db966f3f0bf5a9aca387db16a52e7b89ba99f12c3666277",
+      "status": "candidate",
+      "skillVersionId": "release-readiness-base@1"
+    },
+    "error": null
+  },
+  "loadedRunMatches": true,
+  "reportWindow": {
+    "totalSourceCount": 4,
+    "returnedSourceCount": 4,
+    "totalFactCount": 7,
+    "returnedFactCount": 3,
+    "factOffset": 0,
+    "factLimit": 3,
+    "hasMoreFacts": true,
+    "truncated": true,
+    "omittedSections": [],
+    "reportBytes": 3503
+  },
+  "returnedFactIds": [
+    "fact-release-commit",
+    "fact-release-check-total",
+    "fact-release-check-successful"
+  ],
+  "evaluation": {
+    "evaluationId": "release-eval-df8de5b7f48c42d6adfa8b4de3d5b0a7",
+    "benchmarkId": "release-readiness-real-case-v1",
+    "algorithmVersion": "release-readiness-evaluator-v1",
+    "runtimeVerified": true,
+    "passed": true,
+    "score": 100.0,
+    "hardGatesPassed": true,
+    "cases": [
+      {
+        "id": "source-integrity",
+        "label": "Immutable GitHub source integrity",
+        "score": 100.0,
+        "weight": 20,
+        "passed": true,
+        "hardGate": true,
+        "details": "4 GitHub snapshots",
+        "evidenceRefs": [
+          "github-check-runs",
+          "github-commit",
+          "github-open-pulls",
+          "github-repository"
+        ]
+      },
+      {
+        "id": "finding-citations",
+        "label": "Finding evidence references",
+        "score": 100.0,
+        "weight": 20,
+        "passed": true,
+        "hardGate": true,
+        "details": "All findings cite captured evidence",
+        "evidenceRefs": []
+      },
+      {
+        "id": "no-fabricated-status",
+        "label": "No fabricated source or check status",
+        "score": 100.0,
+        "weight": 20,
+        "passed": true,
+        "hardGate": true,
+        "details": "Report facts match the deterministic dataset",
+        "evidenceRefs": [
+          "fact-release-commit",
+          "fact-release-check-total",
+          "fact-release-check-successful",
+          "fact-release-check-failing",
+          "fact-release-check-pending",
+          "fact-release-open-pulls",
+          "fact-release-draft-pulls"
+        ]
+      },
+      {
+        "id": "ci-evidence",
+        "label": "Candidate CI evidence",
+        "score": 100.0,
+        "weight": 15,
+        "passed": true,
+        "hardGate": true,
+        "details": "19 check run(s)",
+        "evidenceRefs": [
+          "github-check-runs"
+        ]
+      },
+      {
+        "id": "review-evidence",
+        "label": "Pull-request review-work evidence",
+        "score": 100.0,
+        "weight": 10,
+        "passed": true,
+        "hardGate": true,
+        "details": "Open pull-request state captured; approval is explicitly a data gap",
+        "evidenceRefs": [
+          "github-open-pulls"
+        ]
+      },
+      {
+        "id": "recommendation-consistency",
+        "label": "Recommendation consistency",
+        "score": 100.0,
+        "weight": 15,
+        "passed": true,
+        "hardGate": true,
+        "details": "Expected recommendation: blocked",
+        "evidenceRefs": [
+          "fact-release-check-total",
+          "fact-release-check-failing",
+          "fact-release-check-pending"
+        ]
+      }
+    ],
+    "failedCaseIds": [],
+    "summary": "Release readiness evidence passed"
+  },
+  "liveGatewayCallsBefore": 0,
+  "liveGatewayCallsAfter": 0,
+  "replayAvoidedLiveGateway": true
+}

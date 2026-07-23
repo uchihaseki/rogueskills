@@ -61,8 +61,8 @@ class PresetRuntimeDefaults(PresetContract):
 
 
 class PresetEvaluationEvidence(PresetContract):
-    mode: Literal["capability-simulation-v1"] = "capability-simulation-v1"
-    runtimeVerified: Literal[False] = False
+    mode: Literal["capability-simulation-v1", "real-finance-case-v1"] = "capability-simulation-v1"
+    runtimeVerified: bool = False
     sourceRunStatus: Literal["victory"] = "victory"
     objectiveScore: float = Field(ge=0, le=100)
     encountersPassed: int = Field(ge=0)
@@ -102,4 +102,4 @@ class LoadedAgentConfig(PresetContract):
     tools: list[str]
     rules: PresetRules
     runtimeDefaults: PresetRuntimeDefaults
-    runtimeVerified: Literal[False] = False
+    runtimeVerified: bool = False

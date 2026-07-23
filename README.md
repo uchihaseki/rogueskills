@@ -12,6 +12,11 @@ RogueSkills 是一个可发现、评测、进化和版本化 Agent Skill 的实�
 
 完整决策与模块边界见 `docs/python-architecture.md`。
 
+真实 Case Runtime 的泛化设计与迁移路线见 `docs/generalized-real-case-runtime-evolution-design.md`。
+
+第二个真实 Case Pack `release-readiness@1.0.0` 的输入、GitHub 数据边界和
+Live/Replay 验收方法见 `docs/release-readiness-real-case.md`。
+
 ## 本地运行
 
 推荐安装 `uv`，也可以直接使用 Python venv。
@@ -111,6 +116,9 @@ tests/
 
 - Skill Discovery、GitHub 快照、统一排序和风险扫描
 - 金融股票分析场景：社区质量筛选、Qwen SOP 标准化、批量准入和金融 Evolution 地图
+- Real Finance Case：SEC EDGAR + 市场价格快照、事实级引用评测、Genome Mutation 重跑和 Verified Replay
+- Release Readiness Case：GitHub commit/check-runs/open-pulls 快照、三态报告、硬门槛、Mutation 和 Digest Artifact
+- Generic Case MCP：Case Pack allowlist、Live/Replay、Report 分页、Skill Version pinning，兼容 Finance MCP 别名
 - SOP/Runbook/Checklist → Skill Genome 1.0
 - Quarantine Repository、不可变版本、来源快照和准入评测
 - Initial Library 人工晋升与当前版本校验
@@ -119,4 +127,4 @@ tests/
 - 确定性六用例 Benchmark
 - LangGraph Runtime、Output Evaluator、Mutation Planner 的类型化扩展接口
 
-AgentPreset 当前仍是单 Primary Skill、能力数值模拟产生的静态 Candidate。真实 LLM/Playwright Runtime、Hidden Dataset Worker、Genome JSON Patch 和 ProjectRelease 仍属于下一阶段实现范围。
+传统 Evolution Run 生成的 AgentPreset 仍是能力数值模拟 Candidate；`/finance-demo` 的 Real Finance Case 已提供真实 LLM/SEC Runtime、证据评测、Genome JSON Patch、Verified Replay，并生成 `evaluationEvidence.mode=real-finance-case-v1`、`runtimeVerified=true` 的同 Contract AgentPreset。两种路径的证据模式会被显式区分。

@@ -1,4 +1,5 @@
-from typing import Any
+from datetime import date
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -94,3 +95,29 @@ class FinanceBootstrapRequest(StrictModel):
     maxCommunitySkills: int = Field(default=2, ge=1, le=5)
     sopIds: list[str] | None = None
     autoPromote: bool = True
+
+
+class CreateFinanceCaseRequest(StrictModel):
+    ticker: str = Field(min_length=1, max_length=12, pattern=r"^[A-Za-z][A-Za-z0-9.-]*$")
+    skillId: str = Field(min_length=1, max_length=160)
+    asOfDate: date | None = None
+    mode: Literal["live", "verified_replay"] = "live"
+    replayCaseId: str | None = Field(default=None, max_length=160)
+    autoEvolve: bool = True
+
+
+class CreateCaseRunRequest(StrictModel):
+    casePackId: str = Field(min_length=1, max_length=160)
+    casePackVersion: str | None = Field(default=None, max_length=64)
+    skillId: str = Field(min_length=1, max_length=160)
+    skillVersionId: str | None = Field(default=None, min_length=3, max_length=200)
+    input: dict[str, Any]
+    mode: Literal["live", "verified_replay"] = "live"
+    replayCaseId: str | None = Field(default=None, max_length=160)
+    autoEvolve: bool = False
+
+
+class ReplayCaseRunRequest(StrictModel):
+    skillId: str = Field(min_length=1, max_length=160)
+    skillVersionId: str | None = Field(default=None, min_length=3, max_length=200)
+    autoEvolve: bool = False

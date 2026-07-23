@@ -131,6 +131,39 @@ def compile_agent_preset(
     )
     timestamp = (clock or (lambda: datetime.now(UTC)))().isoformat().replace("+00:00", "Z")
     preset_id = f"preset-{hashlib.sha256(run['id'].encode('utf-8')).hexdigest()[:20]}"
+    real_evidence = run.get("runtimeVerification")
+    if real_evidence:
+        evaluation_evidence = {
+            "mode": "real-finance-case-v1",
+            "runtimeVerified": bool(real_evidence.get("runtimeVerified")),
+            "sourceRunStatus": "victory",
+            "objectiveScore": float(real_evidence.get("score", 0)),
+            "encountersPassed": 1 if real_evidence.get("runtimeVerified") else 0,
+            "encounterTotal": 1,
+            "finalStats": deepcopy(run.get("stats", {})),
+            "benchmarkIds": [str(real_evidence.get("benchmarkId", "finance-real-case-v1"))],
+        }
+        limitations = [
+            "This preset contains one primary Skill and does not provide multi-Skill routing.",
+            "The runtime evidence comes from the persisted public-data Finance Case trace.",
+            "Candidate status does not authorize automatic production deployment.",
+        ]
+    else:
+        evaluation_evidence = {
+            "mode": "capability-simulation-v1",
+            "runtimeVerified": False,
+            "sourceRunStatus": "victory",
+            "objectiveScore": _objective_score(run),
+            "encountersPassed": sum(bool(item.get("passed")) for item in history),
+            "encounterTotal": len(history),
+            "finalStats": deepcopy(run["stats"]),
+            "benchmarkIds": benchmark_ids,
+        }
+        limitations = [
+            "This preset contains one primary Skill and does not provide multi-Skill routing.",
+            "Its evidence comes from the deterministic capability simulation, not a real tool Runtime.",
+            "Candidate status does not authorize automatic production deployment.",
+        ]
     payload: dict[str, Any] = {
         "schemaVersion": "0.1.0",
         "id": preset_id,
@@ -172,21 +205,8 @@ def compile_agent_preset(
             "outputValidation": _unique(output_rules),
         },
         "runtimeDefaults": mode_defaults,
-        "evaluationEvidence": {
-            "mode": "capability-simulation-v1",
-            "runtimeVerified": False,
-            "sourceRunStatus": "victory",
-            "objectiveScore": _objective_score(run),
-            "encountersPassed": sum(bool(item.get("passed")) for item in history),
-            "encounterTotal": len(history),
-            "finalStats": deepcopy(run["stats"]),
-            "benchmarkIds": benchmark_ids,
-        },
-        "limitations": [
-            "This preset contains one primary Skill and does not provide multi-Skill routing.",
-            "Its evidence comes from the deterministic capability simulation, not a real tool Runtime.",
-            "Candidate status does not authorize automatic production deployment.",
-        ],
+        "evaluationEvidence": evaluation_evidence,
+        "limitations": limitations,
     }
     payload["digest"] = "pending"
     normalized = AgentPreset.model_validate(payload).model_dump(mode="json")

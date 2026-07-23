@@ -33,6 +33,6 @@ defineProps<{ controller: DiscoveryController; candidate: DiscoveryCandidate }>(
     <div class="candidate-reason" :class="{ warning: !candidate.selection?.recommended }">
       {{ candidate.selection?.reasonCodes?.join(' · ') || candidate.risk?.reasons?.[0] || '已完成来源正文扫描' }}
     </div>
-    <div class="candidate-actions"><span>{{ candidate.discoveredBy?.length ?? 1 }} 条搜索发现证据 · {{ candidate.sourceHitIds?.length ?? 1 }} 个来源</span><div><a v-if="candidate.url" :href="candidate.url" target="_blank" rel="noreferrer">来源 ↗</a><button class="stage-button" :disabled="controller.state.previewingId === candidate.id" @click="controller.openCandidatePreview(candidate)">{{ controller.state.previewingId === candidate.id ? '加载中…' : '预览证据' }}</button></div></div>
+    <div class="candidate-actions"><span>{{ candidate.discoveredBy?.length ?? 1 }} 条搜索证据 · 正文已抓取，可提炼为 Skill</span><div><button class="evidence-button" :disabled="controller.state.previewingId === candidate.id" @click="controller.openCandidatePreview(candidate)">查看证据</button><button class="stage-button extract-skill-button" :disabled="controller.state.draftingId === candidate.id || (candidate.selection && !candidate.selection.eligible)" @click="controller.openCandidateDraft(candidate)">{{ controller.state.draftingId === candidate.id ? '正在提炼…' : '提炼为 Skill' }} <b>→</b></button></div></div>
   </article>
 </template>

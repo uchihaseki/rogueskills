@@ -183,6 +183,161 @@
       "reasons": [],
       "executableContent": false
     }
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "id": "release-readiness-base",
+    "name": "GitHub Release Readiness Base",
+    "description": "Evidence-first release readiness analysis for a GitHub candidate ref.",
+    "status": "initial",
+    "metadata": {
+      "category": "release",
+      "license": "internal",
+      "tags": [
+        "release-readiness",
+        "github",
+        "ci-evidence"
+      ],
+      "completeness": 92
+    },
+    "prompt": {
+      "role": "You are an evidence-bound software release readiness analyst.",
+      "objective": "Determine whether a candidate ref is ready, needs review, or is blocked.",
+      "instruction": "Use only captured GitHub evidence, preserve data gaps, and never infer a successful status."
+    },
+    "workflow": {
+      "steps": [
+        {
+          "id": "release-step-1",
+          "order": 1,
+          "instruction": "Resolve the candidate ref to an immutable GitHub commit SHA.",
+          "tool": "GitHub REST API"
+        },
+        {
+          "id": "release-step-2",
+          "order": 2,
+          "instruction": "Capture candidate commit, check-run, pull-request, and rollback evidence with immutable GitHub URLs and evidence IDs before declaring release readiness.",
+          "tool": "GitHub REST API"
+        },
+        {
+          "id": "release-step-3",
+          "order": 3,
+          "instruction": "Classify failing and pending checks without changing their provider status."
+        },
+        {
+          "id": "release-step-4",
+          "order": 4,
+          "instruction": "Return ready, review, or blocked with finding-level evidence IDs and explicit data gaps."
+        }
+      ]
+    },
+    "inputs": [
+      "GitHub owner/repository",
+      "Candidate ref",
+      "Base branch"
+    ],
+    "outputs": [
+      "Typed release-readiness report",
+      "Evidence-bound release recommendation"
+    ],
+    "constraints": [
+      "Never declare a release ready when required CI evidence is missing or failing.",
+      "Never fabricate a check, review, commit, or pull-request status.",
+      "Treat missing review approval as a data gap."
+    ],
+    "tools": [
+      "GitHub REST API"
+    ],
+    "capabilities": [
+      {
+        "id": "quality",
+        "label": "Release Decision Quality",
+        "level": 86,
+        "tags": [
+          "release-readiness"
+        ],
+        "evidence": [
+          "Release readiness evaluator v1"
+        ]
+      },
+      {
+        "id": "robustness",
+        "label": "Evidence Robustness",
+        "level": 88,
+        "tags": [
+          "github-evidence"
+        ],
+        "evidence": [
+          "Immutable source snapshots"
+        ]
+      },
+      {
+        "id": "security",
+        "label": "Read-only Provider Access",
+        "level": 92,
+        "tags": [
+          "read-only"
+        ],
+        "evidence": [
+          "Fixed GitHub GET endpoints"
+        ]
+      },
+      {
+        "id": "structure",
+        "label": "Typed Report Output",
+        "level": 94,
+        "tags": [
+          "structured-output"
+        ],
+        "evidence": [
+          "ReleaseReadinessReport contract"
+        ]
+      }
+    ],
+    "examples": [],
+    "testCases": [
+      {
+        "id": "release-ready",
+        "purpose": "All captured checks completed successfully",
+        "status": "passed"
+      },
+      {
+        "id": "release-blocked",
+        "purpose": "A captured check failed",
+        "status": "passed"
+      },
+      {
+        "id": "release-evidence-gap",
+        "purpose": "Missing CI evidence cannot be reported as ready",
+        "status": "passed"
+      }
+    ],
+    "evaluation": {
+      "status": "passed",
+      "requiredGates": [
+        "source-integrity",
+        "finding-citations",
+        "no-fabricated-status",
+        "ci-evidence",
+        "review-evidence",
+        "recommendation-consistency"
+      ],
+      "lastRunId": "seed-release-readiness-v1",
+      "score": 92
+    },
+    "provenance": {
+      "platform": "RogueSkills Seed",
+      "url": null,
+      "author": "RogueSkills",
+      "revision": "v1",
+      "artifactPaths": [],
+      "fingerprint": "seed-release-readiness-v1",
+      "capturedAt": "2026-07-23T00:00:00.000Z"
+    },
+    "risk": {
+      "level": "low",
+      "reasons": [],
+      "executableContent": false
+    }
   }
 ]
-

@@ -26,6 +26,7 @@ export interface SkillMetadata {
 }
 
 export interface WorkflowStep {
+  id: string
   order: number
   instruction: string
 }
@@ -430,8 +431,8 @@ export interface AgentPreset {
     enforceBudget: boolean
   }
   evaluationEvidence: {
-    mode: 'capability-simulation-v1'
-    runtimeVerified: false
+    mode: 'capability-simulation-v1' | 'real-finance-case-v1'
+    runtimeVerified: boolean
     sourceRunStatus: 'victory'
     objectiveScore: number
     encountersPassed: number
@@ -497,4 +498,145 @@ export interface EvolutionCatalog {
   nodeTypes: Dictionary<NodeType>
   runModes: Dictionary<RunMode>
   statLabels: Dictionary<string>
+}
+
+export interface FinanceCaseSource {
+  id: string
+  provider: string
+  title: string
+  url: string
+  fetchedAt: string
+  sha256: string
+  contentType: string
+}
+
+export interface FinanceCaseFact {
+  id: string
+  metric: string
+  label: string
+  value: number
+  unit: string
+  periodStart?: string | null
+  periodEnd: string
+  form: string
+  filed: string
+  factName: string
+  sourceEvidenceId: string
+  sourceUrl: string
+}
+
+export interface FinanceDerivedMetric {
+  id: string
+  label: string
+  value: number
+  unit: string
+  formula: string
+  inputFactIds: string[]
+  evidenceIds: string[]
+}
+
+export interface FinanceCaseEvaluation {
+  evaluationId: string
+  benchmarkId: 'finance-real-case-v1'
+  runtimeVerified: boolean
+  passed: boolean
+  score: number
+  hardGatesPassed: boolean
+  failedCaseIds: string[]
+  summary: string
+  cases: Array<{
+    id: string
+    label: string
+    score: number
+    weight: number
+    passed: boolean
+    hardGate: boolean
+    details: string
+    evidenceRefs: string[]
+  }>
+}
+
+export interface FinanceResearchReport {
+  id: string
+  caseId: string
+  stage: 'baseline' | 'evolved'
+  generatedAt: string
+  skillId: string
+  skillVersionId: string
+  company: { ticker: string; name: string; cik: number; [key: string]: unknown }
+  asOfDate: string
+  sources: FinanceCaseSource[]
+  filings: Array<{ form: string; filed: string; reportDate: string; url: string }>
+  facts: FinanceCaseFact[]
+  derivedMetrics: FinanceDerivedMetric[]
+  valuationScenarios: Array<{
+    name: 'bear' | 'base' | 'bull'
+    peMultiple: number
+    impliedPriceByPe?: number | null
+    fcfYield: number
+    impliedPriceByFcf?: number | null
+  }>
+  warnings: Array<{ code: string; message: string }>
+  narrative: {
+    summary: string
+    findings: Array<{
+      id: string
+      kind: 'fact' | 'inference' | 'assumption'
+      claim: string
+      evidenceIds: string[]
+    }>
+    risks: Array<{ id: string; risk: string; evidenceIds: string[] }>
+    dataGaps: string[]
+    conclusionBoundary: string
+  }
+}
+
+export interface FinanceCaseRun {
+  id: string
+  ticker: string
+  asOfDate: string
+  mode: 'live' | 'verified_replay'
+  replayCaseId?: string | null
+  skillId: string
+  baseSkillVersionId: string
+  evolvedSkillVersionId?: string | null
+  financeEvolutionRunId?: string | null
+  agentPreset?: AgentPreset | null
+  status: 'running' | 'succeeded' | 'failed'
+  phase: string
+  runtimeVerified: boolean
+  baseline?: { report: FinanceResearchReport; evaluation: FinanceCaseEvaluation } | null
+  mutation?: {
+    id: string
+    name: string
+    reason: string
+    tradeoff: string
+    status: 'testing' | 'accepted' | 'rejected'
+    genomePatch: Array<{ op: string; path: string; value?: unknown }>
+  } | null
+  evolved?: {
+    report: FinanceResearchReport
+    evaluation: FinanceCaseEvaluation
+    accepted: boolean
+  } | null
+  comparison?: {
+    baselineScore: number
+    evolvedScore: number
+    scoreDelta: number
+    accepted: boolean
+    baselineFailedCaseIds: string[]
+    evolvedFailedCaseIds: string[]
+  } | null
+  finalReport?: FinanceResearchReport | null
+  finalEvaluation?: FinanceCaseEvaluation | null
+  createdAt: string
+  completedAt?: string | null
+  error?: { code: string; message: string; retryable: boolean } | null
+}
+
+export interface FinanceCasePreflight {
+  ready: boolean
+  analyst: NormalizerStatus
+  sources: Array<{ id: string; name: string; configured: boolean; reachable?: boolean | null; state?: string }>
+  runtime: string
 }

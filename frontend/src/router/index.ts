@@ -14,6 +14,11 @@ const router = createRouter({
       component: () => import('@/views/DiscoveryPage.vue'),
     },
     {
+      path: '/finance-demo',
+      name: 'finance-demo',
+      component: () => import('@/views/FinanceCasePage.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/',
     },

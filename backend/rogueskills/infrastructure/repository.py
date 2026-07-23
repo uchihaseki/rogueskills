@@ -342,6 +342,54 @@ class SkillRepository:
         }
         return self.save_skill(genome, source_id=skill["sourceId"] or "manual", trusted_status=True)
 
+    def save_evolved_skill(
+        self,
+        genome: dict[str, Any],
+        *,
+        expected_version_id: str,
+        runtime_evidence: dict[str, Any],
+    ) -> dict[str, Any]:
+        skill_id = str(genome.get("id") or "")
+        current = self.get_skill(skill_id)
+        if not current:
+            raise ApplicationError("SKILL_NOT_FOUND", "Skill 不存在。", status_code=404)
+        if current["currentVersionId"] != expected_version_id:
+            raise ApplicationError(
+                "STALE_SKILL_VERSION",
+                "Skill 当前版本已经改变，不能保存本次进化。",
+                status_code=409,
+                details={"currentVersionId": current["currentVersionId"]},
+            )
+        if current["status"] != "initial":
+            raise ApplicationError(
+                "SKILL_NOT_INITIAL",
+                "只有 Initial Skill 可以通过真实 Case 保存进化版本。",
+                status_code=409,
+            )
+        evolved = deepcopy(genome)
+        evolved["status"] = "initial"
+        evolved["runtimeVerification"] = deepcopy(runtime_evidence)
+        validation = validate_skill_genome(evolved)
+        if not validation["valid"]:
+            raise ApplicationError(
+                "INVALID_EVOLVED_SKILL_GENOME",
+                "进化后的 Skill Genome 未通过 Schema 验证。",
+                status_code=422,
+                details=validation,
+            )
+        saved = self.save_skill(
+            evolved,
+            source_id=current["sourceId"] or "finance-runtime",
+            trusted_status=True,
+        )
+        if saved["currentVersionId"] == expected_version_id:
+            raise ApplicationError(
+                "EVOLVED_SKILL_UNCHANGED",
+                "Mutation 没有产生新的 Skill Version。",
+                status_code=409,
+            )
+        return saved
+
     def save_run(
         self,
         state: dict[str, Any],

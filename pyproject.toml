@@ -41,6 +41,8 @@ dev = [
 
 [project.scripts]
 rogueskills = "rogueskills.main:run"
+rogueskills-finance-mcp = "rogueskills.mcp.finance_bridge:main"
+rogueskills-case-mcp = "rogueskills.mcp.case_bridge:main"
 
 [build-system]
 requires = ["hatchling"]

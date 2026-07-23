@@ -6,6 +6,8 @@ import type {
   DiscoveryImportBatch,
   DiscoverySearchSnapshot,
   EvolutionCatalog,
+  FinanceCasePreflight,
+  FinanceCaseRun,
   FinanceBootstrapResult,
   NormalizerStatus,
   ProviderStatus,
@@ -122,17 +124,29 @@ export const bootstrapFinanceSkills = (payload: {
   }),
 })
 
-export const storeSkillGenome = (genome: SkillGenome, sourceId = 'manual') =>
+export const storeSkillGenome = (
+  genome: SkillGenome,
+  sourceId = 'manual',
+  snapshotContent?: string,
+) =>
   request<{ skill: SkillRecord }>('/api/skills', {
     method: 'POST',
-    body: JSON.stringify({ genome, sourceId }),
+    body: JSON.stringify({ genome, sourceId, snapshotContent }),
   })
 
 export const convertMaterial = (payload: {
   title: string
   content: string
   license: string
-  source: { platform: string; author: string }
+  kind?: string
+  source: {
+    platform: string
+    author: string
+    url?: string
+    revision?: string
+    artifactPaths?: string[]
+    capturedAt?: string
+  }
 }) => request<{ genome: SkillGenome; normalization: NormalizerStatus }>('/api/materials/convert', {
   method: 'POST',
   body: JSON.stringify(payload),
@@ -244,3 +258,34 @@ export async function downloadAgentPreset(
   link.remove()
   URL.revokeObjectURL(blobUrl)
 }
+
+export const financeCasePreflight = () =>
+  request<FinanceCasePreflight>('/api/finance/cases/preflight')
+
+export const listFinanceCases = (limit = 20) =>
+  request<{ cases: FinanceCaseRun[] }>(`/api/finance/cases?limit=${limit}`)
+
+export const createFinanceCase = (payload: {
+  ticker: string
+  skillId: string
+  asOfDate?: string
+  mode?: 'live' | 'verified_replay'
+  replayCaseId?: string
+  autoEvolve?: boolean
+}) => request<{ case: FinanceCaseRun }>('/api/finance/cases', {
+  method: 'POST',
+  body: JSON.stringify({
+    ticker: payload.ticker,
+    skillId: payload.skillId,
+    asOfDate: payload.asOfDate,
+    mode: payload.mode ?? 'live',
+    replayCaseId: payload.replayCaseId,
+    autoEvolve: payload.autoEvolve ?? true,
+  }),
+})
+
+export const getFinanceCase = (caseId: string) =>
+  request<{ case: FinanceCaseRun }>(`/api/finance/cases/${encodeURIComponent(caseId)}`)
+
+export const getFinanceCaseAgentPreset = (caseId: string) =>
+  request<{ preset: AgentPreset }>(`/api/finance/cases/${encodeURIComponent(caseId)}/agent-preset`)

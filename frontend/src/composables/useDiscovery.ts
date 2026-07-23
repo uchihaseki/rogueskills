@@ -17,6 +17,7 @@ export type DiscoveryView = 'search' | 'finance' | 'convert' | 'library'
 
 export function useDiscovery() {
   let eventSource: EventSource | null = null
+  let candidateRequestToken = 0
   const state = reactive({
     view: 'search' as DiscoveryView,
     query: 'browser extraction',
@@ -35,6 +36,13 @@ export function useDiscovery() {
     userEditedSelection: false,
     candidatePreview: null as DiscoveryCandidatePreview | null,
     previewingId: null as string | null,
+    previewIntent: 'evidence' as 'evidence' | 'draft',
+    candidateDraft: null as SkillGenome | null,
+    draftingId: null as string | null,
+    draftNormalization: null as NormalizerStatus | null,
+    savingDraft: false,
+    savedDraftSkillId: null as string | null,
+    flowStage: 1,
     reviewOpen: false,
     importing: false,
     importBatch: null as DiscoveryImportBatch | null,
@@ -90,6 +98,7 @@ export function useDiscovery() {
     state.providerStatus = snapshot.providerStatus
     state.sources = snapshot.sources
     state.results = snapshot.candidates
+    if (snapshot.sources.length) state.flowStage = Math.max(state.flowStage, 2)
     if (!state.userEditedSelection) {
       state.selectedIds = new Set(
         snapshot.candidates
@@ -107,6 +116,7 @@ export function useDiscovery() {
     const index = state.sources.findIndex((item) => item.id === source.id)
     if (index === -1) state.sources.push(source)
     else state.sources[index] = source
+    state.flowStage = Math.max(state.flowStage, 2)
   }
   async function refreshCompletedRun() {
     if (!state.searchRun) return
@@ -161,10 +171,12 @@ export function useDiscovery() {
     if (!state.providerIds.size) return setNotice('请至少选择一个已经配置的真实搜索 API。', 'error')
     eventSource?.close()
     eventSource = null
+    candidateRequestToken += 1
     state.searching = true; state.notice = null
     state.results = []; state.sources = []; state.events = []; state.providerStatus = []
     state.selectedIds = new Set(); state.userEditedSelection = false
-    state.candidatePreview = null; state.importBatch = null
+    state.candidatePreview = null; state.candidateDraft = null; state.importBatch = null
+    state.draftNormalization = null; state.savedDraftSkillId = null; state.flowStage = 1
     try {
       if (state.gateway !== 'online') throw new Error('Python Gateway offline')
       const snapshot = await createDiscoverySearchRun({
@@ -199,12 +211,112 @@ export function useDiscovery() {
     state.selectedIds = new Set()
   }
   async function openCandidatePreview(candidate: DiscoveryCandidate) {
+    const requestToken = ++candidateRequestToken
+    state.previewIntent = 'evidence'
     state.previewingId = candidate.id
-    try { state.candidatePreview = await previewDiscoveryCandidate(candidate.id) }
-    catch (error) { setNotice(`预览失败：${errorMessage(error)}`, 'error') }
-    finally { state.previewingId = null }
+    state.candidateDraft = null; state.draftNormalization = null
+    state.savedDraftSkillId = null
+    try {
+      const result = await previewDiscoveryCandidate(candidate.id)
+      if (requestToken === candidateRequestToken) state.candidatePreview = result
+    } catch (error) {
+      if (requestToken === candidateRequestToken) setNotice(`预览失败：${errorMessage(error)}`, 'error')
+    } finally {
+      if (requestToken === candidateRequestToken) state.previewingId = null
+    }
   }
-  function closeCandidatePreview() { state.candidatePreview = null }
+  async function openCandidateDraft(candidate: DiscoveryCandidate) {
+    const requestToken = ++candidateRequestToken
+    state.previewIntent = 'draft'
+    state.previewingId = candidate.id; state.draftingId = candidate.id
+    state.candidateDraft = null
+    state.draftNormalization = null; state.savedDraftSkillId = null; state.notice = null
+    try {
+      const preview = await previewDiscoveryCandidate(candidate.id)
+      if (requestToken !== candidateRequestToken) return
+      state.candidatePreview = preview
+      const discovery = {
+        ...preview.genome.discovery,
+        candidateId: candidate.id,
+        searchRunId: state.searchRun?.id,
+        ranking: candidate.ranking,
+      }
+      state.candidateDraft = structuredClone({ ...preview.genome, discovery })
+      state.flowStage = Math.max(state.flowStage, 3)
+      state.previewingId = null
+      if (!state.normalizer?.configured) {
+        setNotice('已生成可编辑的基础草稿；配置 LLM Normalizer 后可获得更完整的语义提炼。')
+        return
+      }
+      try {
+        const { genome, normalization } = await convertMaterial({
+          title: candidate.name,
+          content: preview.rawContent,
+          kind: candidate.kind === 'material' ? 'web-material' : candidate.kind,
+          license: candidate.license,
+          source: {
+            platform: candidate.platform,
+            author: candidate.author,
+            url: candidate.url ?? preview.source.url,
+            revision: candidate.snapshot?.revision,
+            artifactPaths: candidate.snapshot?.artifactPaths,
+            capturedAt: candidate.snapshot?.fetchedAt,
+          },
+        })
+        if (requestToken !== candidateRequestToken) return
+        genome.discovery = discovery
+        state.candidateDraft = genome
+        state.draftNormalization = normalization
+      } catch (error) {
+        if (requestToken === candidateRequestToken) {
+          setNotice(`模型提炼未完成，已保留可编辑的基础草稿：${errorMessage(error)}`, 'error')
+        }
+      }
+    } catch (error) {
+      if (requestToken === candidateRequestToken) {
+        state.candidatePreview = null; state.candidateDraft = null
+        setNotice(`提炼失败：${errorMessage(error)}`, 'error')
+      }
+    } finally {
+      if (requestToken === candidateRequestToken) {
+        state.previewingId = null; state.draftingId = null
+      }
+    }
+  }
+  function closeCandidatePreview() {
+    candidateRequestToken += 1
+    state.candidatePreview = null; state.candidateDraft = null
+    state.draftNormalization = null; state.savedDraftSkillId = null
+    state.previewingId = null; state.draftingId = null
+  }
+  async function saveCandidateDraft() {
+    const draft = state.candidateDraft
+    const preview = state.candidatePreview
+    if (!draft || !preview) return
+    const candidate = preview.candidate
+    if (candidate.selection && !candidate.selection.eligible) {
+      return setNotice('该来源触发了高风险或内容不可用门禁，不能保存。', 'error')
+    }
+    if (!draft.name.trim() || !draft.description.trim()) {
+      return setNotice('Skill 名称和用途说明不能为空。', 'error')
+    }
+    if (!draft.workflow.steps.length || draft.workflow.steps.some((step) => !step.instruction.trim())) {
+      return setNotice('请至少保留一个完整的 Workflow 步骤。', 'error')
+    }
+    state.savingDraft = true; state.notice = null
+    try {
+      const { skill } = await storeSkillGenome(draft, 'web-discovery', preview.rawContent)
+      const genome = recordToGenome(skill)
+      state.library = [genome, ...state.library.filter((item) => item.id !== genome.id)]
+      saveLibrary(); state.candidateDraft = genome; state.savedDraftSkillId = skill.id
+      state.flowStage = 4
+      setNotice(`「${genome.name}」已带来源快照保存到隔离候选库。`)
+    } catch (error) { setNotice(`保存失败：${errorMessage(error)}`, 'error') }
+    finally { state.savingDraft = false }
+  }
+  function openSavedDraftInLibrary() {
+    state.candidatePreview = null; state.view = 'library'; state.notice = null
+  }
   function openImportReview() {
     if (!state.selectedIds.size) return
     state.reviewOpen = true
@@ -321,8 +433,9 @@ export function useDiscovery() {
 
   return {
     benchmark, candidateInLibrary, clearSelection, closeCandidatePreview, confirmImport, connectorById,
-    convert, download, initialize, openCandidatePreview, openImportReview, promote, providerById, remove,
-    runFinanceBootstrap, runSearch, selectRecommended, stageCandidate, stagePreview, state, switchView,
+    convert, download, initialize, openCandidateDraft, openCandidatePreview, openImportReview,
+    openSavedDraftInLibrary, promote, providerById, remove, runFinanceBootstrap, runSearch,
+    saveCandidateDraft, selectRecommended, stageCandidate, stagePreview, state, switchView,
     toggleCandidate, toggleProvider, toggleSource, upload, visibleResults,
   }
 }

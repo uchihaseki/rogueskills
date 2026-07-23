@@ -73,7 +73,7 @@ class OpenAICompatibleMaterialNormalizer:
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         schema = NormalizedMaterial.model_json_schema()
-        payload = {
+        payload: dict[str, object] = {
             "model": self.model,
             "temperature": 0,
             "messages": [
@@ -108,7 +108,11 @@ class OpenAICompatibleMaterialNormalizer:
             if response.status_code in (400, 422):
                 fallback = deepcopy(payload)
                 fallback.pop("response_format", None)
-                fallback["messages"][0]["content"] += (
+                fallback_messages = fallback["messages"]
+                assert isinstance(fallback_messages, list)
+                fallback_system = fallback_messages[0]
+                assert isinstance(fallback_system, dict)
+                fallback_system["content"] = str(fallback_system["content"]) + (
                     "\nThe server does not accept response_format. Return one JSON object that "
                     "validates against this schema:\n"
                     f"{json.dumps(schema, ensure_ascii=False)}"
@@ -125,6 +129,12 @@ class OpenAICompatibleMaterialNormalizer:
             if not isinstance(raw_content, str):
                 raise TypeError("LLM content must be a JSON string")
             return _parse_normalized_content(raw_content)
+        except httpx.ConnectError as error:
+            raise MaterialNormalizerError(
+                "LLM_NORMALIZATION_CONNECTION_FAILED",
+                "无法连接 SOP 归一化模型服务。",
+                retryable=True,
+            ) from error
         except httpx.TimeoutException as error:
             raise MaterialNormalizerError(
                 "LLM_NORMALIZATION_TIMEOUT",

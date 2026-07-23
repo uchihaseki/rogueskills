@@ -22,8 +22,8 @@ from rogueskills.domain.evolution import (
     resolve_current_node,
     select_node,
 )
-from rogueskills.domain.genome import validate_skill_genome
 from rogueskills.domain.finance import deep_filter_finance_candidate, select_finance_candidates
+from rogueskills.domain.genome import validate_skill_genome
 from rogueskills.domain.presets import InvalidAgentPreset, compile_agent_preset
 
 

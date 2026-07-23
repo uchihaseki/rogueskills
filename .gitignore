@@ -13,3 +13,16 @@ htmlcov/
 .coverage
 .claude
 .idea
+
+# Live E2E runtime state and host-local diagnostics. Keep reproducible runners,
+# schemas, summaries, and Markdown evidence; do not version local databases,
+# raw logs, generated archives, or full host transcripts.
+artifacts/**/*.db
+artifacts/**/*.db-shm
+artifacts/**/*.db-wal
+artifacts/**/*.log
+artifacts/**/*.zip
+artifacts/**/*-events.jsonl
+artifacts/**/*-transcript.json
+artifacts/**/*-failure.json
+artifacts/**/latest

@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
     llm_model: str | None = None
     llm_timeout_seconds: float = 60
+    sec_user_agent: str = "RogueSkills finance-demo contact@rogueskills.local"
     search_cache_ttl_seconds: int = 60
     automatic_run_step_delay_seconds: float = Field(default=0.35, ge=0, le=5)
     max_request_bytes: int = 2_000_000
