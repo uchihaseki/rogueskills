@@ -445,3 +445,26 @@ class SkillRepository:
                 if row
                 else None
             )
+
+    def list_runs(self, *, limit: int = 20, status: str | None = None) -> list[dict[str, Any]]:
+        """Return the most recently updated Evolution Runs.
+
+        The UI normally knows the active Run ID, but external hosts such as Codex
+        need a small read-only discovery surface to pick up the latest local demo
+        without asking the presenter to copy an opaque ID by hand.
+        """
+
+        bounded_limit = max(1, min(int(limit), 100))
+        with self.sessions() as session:
+            query = select(EvolutionRunRow).order_by(EvolutionRunRow.updated_at.desc())
+            if status:
+                query = query.where(EvolutionRunRow.status == status)
+            rows = session.scalars(query.limit(bounded_limit)).all()
+            return [
+                {
+                    "run": _parse(row.state_json, {}),
+                    "revision": row.revision,
+                    "baseSkillVersionId": row.base_skill_version_id,
+                }
+                for row in rows
+            ]

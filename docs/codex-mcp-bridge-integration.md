@@ -91,7 +91,7 @@ Runner 保留用户的 model-provider 配置（包括本地 Responses proxy）�
 `--disable apps/plugins/remote_plugin` 关闭个人插件和远程插件；项目 `.codex/config.toml`
 额外禁用 `node_repl`，仍负责加载 `rogueskills-cases`。
 
-项目只 allowlist 七个 Generic Case 工具，并将 `rogueskills-cases` 自身的
+项目 allowlist 七个 Generic Case 工具和七个 Browser Evolution 只读查询工具，并将 `rogueskills-cases` 自身的
 `default_tools_approval_mode` 设为 `approve`。该批准不扩散到 shell、其他 MCP 或个人插件；
 它用于避免非交互 `codex exec` 把 MCP 确认请求自动记成 `user cancelled`。
 
@@ -145,7 +145,7 @@ codex mcp list
 
 - Codex 能发现 `rogueskills-cases`；
 - MCP initialize 协商成功并返回 `rogueskills-cases@0.2.0`；
-- tools/list 包含 7 个 Generic Case 工具和 5 个 Finance 兼容别名；
+- tools/list 包含 7 个 Generic Case 工具、7 个 Browser Evolution 只读工具和 5 个 Finance 兼容别名；
 - Codex 实际调用 `run_case`，而不是自己生成结论；
 - 新 Case ID 可由 `get_case_run/report/evaluation` 复查；
 - `mode=verified_replay` 且 `replayCaseId` 指向真实 Live Case；

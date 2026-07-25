@@ -3,6 +3,12 @@
 Use the approved `rogueskills-cases` MCP server for RogueSkills Case Packs. Do
 not invent provider data or reproduce the Runtime in this project.
 
+The same server exposes read-only browser Evolution inspection tools. When the
+presenter has just completed a frontend demo, call `get_demo_context` first,
+then `get_skill`, `get_evolution_run`, and `get_agent_preset` as needed. Keep
+the Skill's `runtimeVerified` boundary intact; a capability-simulation artifact
+is not a real finance-case runtime verification.
+
 1. Call `list_case_packs` and confirm the requested Pack is allowlisted.
 2. Call `get_case_pack` and `case_preflight` before a Live or Verified Replay run.
 3. Call `run_case` with an explicit `casePackId`, typed `input`, and `autoEvolve=false`.

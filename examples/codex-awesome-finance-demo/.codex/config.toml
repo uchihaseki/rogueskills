@@ -1,4 +1,4 @@
-[mcp_servers.rogueskills-cases]
+[mcp_servers.rogueskills-demo]
 command = "../../.venv/bin/python"
 args = ["-m", "rogueskills.mcp.case_bridge"]
 default_tools_approval_mode = "approve"
@@ -19,12 +19,12 @@ enabled_tools = [
   "get_case_evaluation",
 ]
 
-[mcp_servers.rogueskills-cases.env]
+[mcp_servers.rogueskills-demo.env]
 PYTHONPATH = "../../backend"
 ROGUESKILLS_API_BASE_URL = "http://127.0.0.1:5173"
-ROGUESKILLS_ALLOWED_CASE_PACKS = "finance-stock-analysis,release-readiness"
-ROGUESKILLS_DEFAULT_FINANCE_SKILL_ID = "sop-9e7795"
-ROGUESKILLS_DEFAULT_CASE_SKILL_VERSIONS = '{"finance-stock-analysis":"sop-9e7795@2","release-readiness":"release-readiness-base@1"}'
+ROGUESKILLS_ALLOWED_CASE_PACKS = "finance-stock-analysis"
+ROGUESKILLS_DEFAULT_FINANCE_SKILL_ID = "alphaear-signal-tracker-90641e"
+ROGUESKILLS_DEFAULT_CASE_SKILL_VERSIONS = '{"finance-stock-analysis":"alphaear-signal-tracker-90641e@2"}'
 
 [mcp_servers.node_repl]
 enabled = false

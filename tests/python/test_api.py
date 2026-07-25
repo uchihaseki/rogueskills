@@ -228,20 +228,18 @@ def test_victory_run_can_save_export_and_load_agent_preset() -> None:
 
         exported = api.get(f"/api/agent-presets/{preset['id']}/export")
         assert exported.status_code == 200
-        assert f'{preset["id"]}.json' in exported.headers["content-disposition"]
+        assert f"{preset['id']}.json" in exported.headers["content-disposition"]
         assert exported.json()["digest"] == preset["digest"]
 
         package = api.get(f"/api/agent-presets/{preset['id']}/export/universal")
         assert package.status_code == 200
         assert package.headers["content-type"] == "application/zip"
-        assert f'{preset["id"]}-universal.zip' in package.headers["content-disposition"]
+        assert f"{preset['id']}-universal.zip" in package.headers["content-disposition"]
         with ZipFile(BytesIO(package.content)) as archive:
             names = archive.namelist()
             assert "AGENTS.md" in names
             assert "CLAUDE.md" in names
-            manifest_path = next(
-                name for name in names if name.endswith("/export-manifest.json")
-            )
+            manifest_path = next(name for name in names if name.endswith("/export-manifest.json"))
             manifest = json.loads(archive.read(manifest_path))
             assert manifest["presetDigest"] == preset["digest"]
             assert manifest["target"] == "universal"
@@ -395,7 +393,9 @@ multiple fiscal periods before producing a sourced equity research report.
                 skill for skill in library if skill["genome"]["metadata"]["category"] == "finance"
             ]
             assert len(finance_skills) == 3
-            assert all("stock-analysis" in skill["genome"]["metadata"]["tags"] for skill in finance_skills)
+            assert all(
+                "stock-analysis" in skill["genome"]["metadata"]["tags"] for skill in finance_skills
+            )
 
             evolution = api.post(
                 "/api/runs",
@@ -561,9 +561,11 @@ Research a claim with traceable sources.
             snapshot = _wait_for_discovery_run(api, run_id)
             assert snapshot["run"]["state"] == "review_ready"
             assert len(snapshot["sources"]) == 1
-            assert {
-                item["providerId"] for item in snapshot["sources"][0]["discoveredBy"]
-            } == {"brave", "tavily", "exa"}
+            assert {item["providerId"] for item in snapshot["sources"][0]["discoveredBy"]} == {
+                "brave",
+                "tavily",
+                "exa",
+            }
             assert len(snapshot["candidates"]) == 1
 
             events = api.get(f"/api/discovery/search-runs/{run_id}/events").text
@@ -572,9 +574,7 @@ Research a claim with traceable sources.
             assert "run.review_ready" in events
 
             candidate = snapshot["candidates"][0]
-            preview = api.get(
-                f"/api/discovery/candidates/{candidate['id']}/preview"
-            ).json()
+            preview = api.get(f"/api/discovery/candidates/{candidate['id']}/preview").json()
             assert preview["rawContent"] == source_content.strip()
             assert preview["genome"]["name"] == "Evidence Research Skill"
 
@@ -668,8 +668,41 @@ def test_github_search_run_expands_every_skill_md_in_repository() -> None:
                 "skills/research/SKILL.md",
             }
             assert all(
-                item["snapshot"]["revision"] == "fixed-commit"
-                for item in snapshot["candidates"]
+                item["snapshot"]["revision"] == "fixed-commit" for item in snapshot["candidates"]
             )
     finally:
         asyncio.run(http_client.aclose())
+
+
+def test_demo_context_links_latest_frontend_run_to_skill_and_version() -> None:
+    with client() as api:
+        skill = create_quarantine(api)
+        benchmark = api.post(f"/api/skills/{skill['id']}/benchmark", json={}).json()
+        initial = api.post(
+            f"/api/skills/{skill['id']}/promote",
+            json={
+                "evaluationId": benchmark["evaluation"]["id"],
+                "expectedSkillVersionId": skill["currentVersionId"],
+            },
+        ).json()["skill"]
+        created = api.post(
+            "/api/runs",
+            json={"seed": "DEMO-CONTEXT-001", "skillId": initial["id"], "modeId": "stable"},
+        ).json()
+
+        listed = api.get("/api/runs?limit=1")
+        assert listed.status_code == 200
+        assert listed.json()["runs"][0]["run"]["id"] == created["run"]["id"]
+
+        context = api.get("/api/demo/context")
+        assert context.status_code == 200
+        payload = context.json()
+        assert payload["available"] is True
+        assert payload["skill"]["id"] == initial["id"]
+        assert payload["run"]["run"]["id"] == created["run"]["id"]
+        assert "mutations" in payload["catalog"]
+        assert payload["catalog"]["statLabels"]
+
+        version = api.get(f"/api/skill-versions/{initial['currentVersionId']}")
+        assert version.status_code == 200
+        assert version.json()["version"]["skillId"] == initial["id"]

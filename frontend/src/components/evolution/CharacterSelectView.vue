@@ -88,7 +88,7 @@ watch(() => props.objectiveMode, animateStats)
           <span class="slot-number">{{ String(index + 1).padStart(2, '0') }}</span>
           <span class="pixel-avatar" aria-hidden="true">{{ (skill.name ?? skill.genome.name).slice(0, 2).toUpperCase() }}</span>
           <span class="slot-copy">
-            <small>{{ skill.genome.metadata.category }}</small>
+            <small>{{ skill.sourceId === 'awesome-finance-skills' ? 'AWESOME FINANCE' : skill.genome.metadata.category }}</small>
             <strong>{{ skill.name ?? skill.genome.name }}</strong>
             <em>LV.{{ skill.versions?.[0]?.version ?? 1 }}</em>
           </span>

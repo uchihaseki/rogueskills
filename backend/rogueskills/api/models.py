@@ -97,6 +97,11 @@ class FinanceBootstrapRequest(StrictModel):
     autoPromote: bool = True
 
 
+class AwesomeFinanceImportRequest(StrictModel):
+    skillNames: list[str] | None = Field(default=None, max_length=20)
+    autoPromote: bool = True
+
+
 class CreateFinanceCaseRequest(StrictModel):
     ticker: str = Field(min_length=1, max_length=12, pattern=r"^[A-Za-z][A-Za-z0-9.-]*$")
     skillId: str = Field(min_length=1, max_length=160)

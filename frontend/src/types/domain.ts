@@ -73,6 +73,7 @@ export interface RepositoryMetadata {
 export interface SkillRecord {
   id: string
   name?: string
+  sourceId?: string
   status: string
   currentVersionId: string
   genome: SkillGenome

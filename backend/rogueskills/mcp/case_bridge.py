@@ -12,7 +12,12 @@ from .protocol import run_stdio
 
 class CaseMcpBridge(FinanceMcpBridge):
     def __init__(self, api: RogueSkillsApiClient, **kwargs: Any) -> None:
-        super().__init__(api, server_name="rogueskills-cases", **kwargs)
+        super().__init__(
+            api,
+            server_name="rogueskills-cases",
+            include_demo_tools=True,
+            **kwargs,
+        )
 
 
 async def _run() -> None:

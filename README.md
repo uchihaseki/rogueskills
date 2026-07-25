@@ -119,6 +119,8 @@ tests/
 - Real Finance Case：SEC EDGAR + 市场价格快照、事实级引用评测、Genome Mutation 重跑和 Verified Replay
 - Release Readiness Case：GitHub commit/check-runs/open-pulls 快照、三态报告、硬门槛、Mutation 和 Digest Artifact
 - Generic Case MCP：Case Pack allowlist、Live/Replay、Report 分页、Skill Version pinning，兼容 Finance MCP 别名
+- Browser → Codex 只读 Demo Context：自动发现最近一局 Evolution Run，并查询 Skill Genome、版本、Mutation、Evolution 和 AgentPreset
+- `Awesome-finance-skills` 本地快照批量接入：9 个 `alphaear-*` skill 经过 quarantine、许可证、静态安全和 Admission Benchmark 后进入 Initial Library
 - SOP/Runbook/Checklist → Skill Genome 1.0
 - Quarantine Repository、不可变版本、来源快照和准入评测
 - Initial Library 人工晋升与当前版本校验
@@ -128,3 +130,8 @@ tests/
 - LangGraph Runtime、Output Evaluator、Mutation Planner 的类型化扩展接口
 
 传统 Evolution Run 生成的 AgentPreset 仍是能力数值模拟 Candidate；`/finance-demo` 的 Real Finance Case 已提供真实 LLM/SEC Runtime、证据评测、Genome JSON Patch、Verified Replay，并生成 `evaluationEvidence.mode=real-finance-case-v1`、`runtimeVerified=true` 的同 Contract AgentPreset。两种路径的证据模式会被显式区分。
+
+Awesome Finance Skills 的可复现导入与自进化演示见
+[`docs/awesome-finance-self-evolution-demo.md`](docs/awesome-finance-self-evolution-demo.md)。
+Codex 现场配置位于
+[`examples/codex-awesome-finance-demo`](examples/codex-awesome-finance-demo)。

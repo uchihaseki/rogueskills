@@ -42,6 +42,22 @@ const emptyCatalog: EvolutionCatalog = {
 }
 
 const AUTO_ADVANCE_INTERVAL_MS = 420
+const AWESOME_FINANCE_SOURCE_ID = 'awesome-finance-skills'
+const RECOMMENDED_DEMO_SKILL_NAME = 'alphaear-signal-tracker'
+
+function prioritizeDemoSkills(skills: SkillRecord[]): SkillRecord[] {
+  return [...skills].sort((left, right) => {
+    const leftName = left.name ?? left.genome.name
+    const rightName = right.name ?? right.genome.name
+    const leftRecommended = leftName === RECOMMENDED_DEMO_SKILL_NAME
+    const rightRecommended = rightName === RECOMMENDED_DEMO_SKILL_NAME
+    if (leftRecommended !== rightRecommended) return leftRecommended ? -1 : 1
+    const leftAwesome = left.sourceId === AWESOME_FINANCE_SOURCE_ID
+    const rightAwesome = right.sourceId === AWESOME_FINANCE_SOURCE_ID
+    if (leftAwesome !== rightAwesome) return leftAwesome ? -1 : 1
+    return 0
+  })
+}
 
 export function useEvolutionRun() {
   const savedRun = ref<SavedRun | null>(loadJson<SavedRun | null>(STORAGE_KEY, null))
@@ -184,9 +200,9 @@ export function useEvolutionRun() {
     try {
       const [nextCatalog, library] = await Promise.all([getEvolutionCatalog(), listInitialSkills()])
       Object.assign(catalog, nextCatalog)
-      initialSkills.value = library.skills
+      initialSkills.value = prioritizeDemoSkills(library.skills)
       libraryState.value = 'ready'
-      selectedSkillId.value = library.skills[0]?.id ?? null
+      selectedSkillId.value = initialSkills.value[0]?.id ?? null
       selectedModeId.value = Object.values(nextCatalog.runModes)[0]?.id ?? ''
     } catch (error) {
       libraryState.value = 'offline'

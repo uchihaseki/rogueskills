@@ -24,6 +24,23 @@ from rogueskills.contracts.case_mcp import (
     build_case_mcp_report,
     summarize_case_run,
 )
+from rogueskills.contracts.demo_mcp import (
+    DemoMcpContext,
+    DemoMcpEmptyInput,
+    DemoMcpEvolutionRunDetail,
+    DemoMcpEvolutionRuns,
+    DemoMcpEvolutionRunSummary,
+    DemoMcpInitialSkills,
+    DemoMcpPresetDetail,
+    DemoMcpPresetRequest,
+    DemoMcpRunRequest,
+    DemoMcpRunsRequest,
+    DemoMcpSkillDetail,
+    DemoMcpSkillRequest,
+    DemoMcpSkillSummary,
+    DemoMcpSkillVersionDetail,
+    DemoMcpSkillVersionRequest,
+)
 from rogueskills.contracts.finance_mcp import (
     FinanceMcpAnalyzeStockInput,
     FinanceMcpCaseRequest,
@@ -80,13 +97,157 @@ class RogueSkillsApiClient:
 
     @classmethod
     def from_environment(cls) -> RogueSkillsApiClient:
-        return cls(
-            base_url=os.getenv("ROGUESKILLS_API_BASE_URL", "http://127.0.0.1:5173")
-        )
+        return cls(base_url=os.getenv("ROGUESKILLS_API_BASE_URL", "http://127.0.0.1:5173"))
 
     async def close(self) -> None:
         if self._owns_client:
             await self._client.aclose()
+
+    async def list_initial_skills(self, _request: DemoMcpEmptyInput) -> DemoMcpInitialSkills:
+        payload = await self._request_json(
+            "GET", "/api/library/initial", timeout_ms=self.limits.readTimeoutMs
+        )
+        summaries: list[DemoMcpSkillSummary] = []
+        for item in payload.get("skills", []):
+            if not isinstance(item, dict):
+                continue
+            genome = item.get("genome") if isinstance(item.get("genome"), dict) else {}
+            metadata = genome.get("metadata") if isinstance(genome.get("metadata"), dict) else {}
+            evaluation = (
+                genome.get("evaluation") if isinstance(genome.get("evaluation"), dict) else {}
+            )
+            summaries.append(
+                DemoMcpSkillSummary(
+                    id=str(item["id"]),
+                    name=str(item.get("name") or genome.get("name") or item["id"]),
+                    description=str(item.get("description") or genome.get("description") or ""),
+                    status=str(item.get("status") or "initial"),
+                    currentVersionId=item.get("currentVersionId"),
+                    sourceId=item.get("sourceId"),
+                    category=str(metadata["category"]) if metadata.get("category") else None,
+                    score=(
+                        float(evaluation["score"]) if evaluation.get("score") is not None else None
+                    ),
+                )
+            )
+        return DemoMcpInitialSkills(skills=summaries)
+
+    async def get_skill(self, request: DemoMcpSkillRequest) -> DemoMcpSkillDetail:
+        payload = await self._request_json(
+            "GET",
+            f"/api/skills/{quote(request.skillId, safe='')}",
+            timeout_ms=self.limits.readTimeoutMs,
+        )
+        return DemoMcpSkillDetail.model_validate(payload)
+
+    async def get_skill_version(
+        self, request: DemoMcpSkillVersionRequest
+    ) -> DemoMcpSkillVersionDetail:
+        payload = await self._request_json(
+            "GET",
+            f"/api/skill-versions/{quote(request.skillVersionId, safe='')}",
+            timeout_ms=self.limits.readTimeoutMs,
+        )
+        return DemoMcpSkillVersionDetail.model_validate(payload)
+
+    @staticmethod
+    def _evolution_summary(record: dict[str, Any]) -> DemoMcpEvolutionRunSummary:
+        run = record.get("run") if isinstance(record.get("run"), dict) else {}
+        artifact = record.get("artifact") if isinstance(record.get("artifact"), dict) else {}
+        automation = run.get("automation") if isinstance(run.get("automation"), dict) else {}
+        node_count = sum(
+            len(layer)
+            for region in run.get("map", [])
+            if isinstance(region, dict)
+            for layer in region.get("layers", [])
+            if isinstance(layer, list)
+        )
+        evidence = artifact.get("evaluationEvidence") if isinstance(artifact, dict) else {}
+        return DemoMcpEvolutionRunSummary(
+            id=str(run.get("id", "")),
+            status=str(run.get("status", "unknown")),
+            phase=str(run.get("phase", "unknown")),
+            seed=str(run.get("seed", "")),
+            baseSkillId=str(run.get("baseSkillId", "")),
+            baseSkillVersionId=record.get("baseSkillVersionId"),
+            skillName=run.get("skillName"),
+            scenarioId=run.get("scenarioId"),
+            mutationIds=[str(item) for item in run.get("mutationIds", [])],
+            evolutionIds=[str(item) for item in run.get("evolutionIds", [])],
+            completedNodeCount=len(run.get("completedNodeIds", [])),
+            totalNodeCount=node_count,
+            automationStatus=automation.get("status"),
+            artifactId=artifact.get("id"),
+            runtimeVerified=bool(evidence.get("runtimeVerified", False)),
+        )
+
+    async def list_evolution_runs(self, request: DemoMcpRunsRequest) -> DemoMcpEvolutionRuns:
+        query = f"/api/runs?limit={request.limit}"
+        if request.status:
+            query += f"&status={quote(request.status, safe='')}"
+        payload = await self._request_json("GET", query, timeout_ms=self.limits.readTimeoutMs)
+        return DemoMcpEvolutionRuns(
+            runs=[
+                self._evolution_summary(item)
+                for item in payload.get("runs", [])
+                if isinstance(item, dict)
+            ]
+        )
+
+    async def get_evolution_run(self, request: DemoMcpRunRequest) -> DemoMcpEvolutionRunDetail:
+        record = await self._request_json(
+            "GET",
+            f"/api/runs/{quote(request.runId, safe='')}",
+            timeout_ms=self.limits.readTimeoutMs,
+        )
+        catalog = await self._request_json(
+            "GET", "/api/evolution/catalog", timeout_ms=self.limits.readTimeoutMs
+        )
+        run = record.get("run") if isinstance(record.get("run"), dict) else {}
+        mutation_ids = set(run.get("mutationIds", []))
+        evolution_ids = set(run.get("evolutionIds", []))
+        mutation_details = [
+            item
+            for item in catalog.get("mutations", [])
+            if isinstance(item, dict) and item.get("id") in mutation_ids
+        ]
+        evolution_details = [
+            item
+            for item in catalog.get("evolutions", [])
+            if isinstance(item, dict) and item.get("id") in evolution_ids
+        ]
+        return DemoMcpEvolutionRunDetail(
+            record=record,
+            mutationDetails=mutation_details,
+            evolutionDetails=evolution_details,
+        )
+
+    async def get_agent_preset(self, request: DemoMcpPresetRequest) -> DemoMcpPresetDetail:
+        if request.presetId:
+            path = f"/api/agent-presets/{quote(request.presetId, safe='')}"
+        elif request.runId:
+            path = f"/api/runs/{quote(request.runId, safe='')}"
+        else:
+            raise ValueError("presetId or runId is required")
+        payload = await self._request_json("GET", path, timeout_ms=self.limits.readTimeoutMs)
+        if request.runId:
+            preset = payload.get("artifact")
+            if not isinstance(preset, dict):
+                raise RogueSkillsApiError(
+                    FinanceMcpError(
+                        code="AGENT_PRESET_NOT_AVAILABLE",
+                        message="该 Evolution Run 尚未生成 AgentPreset。",
+                        retryable=False,
+                    )
+                )
+            return DemoMcpPresetDetail(preset=preset)
+        return DemoMcpPresetDetail.model_validate(payload)
+
+    async def get_demo_context(self, _request: DemoMcpEmptyInput) -> DemoMcpContext:
+        payload = await self._request_json(
+            "GET", "/api/demo/context", timeout_ms=self.limits.readTimeoutMs
+        )
+        return DemoMcpContext.model_validate(payload)
 
     async def _request_json(
         self,
@@ -190,9 +351,7 @@ class RogueSkillsApiClient:
     async def case_preflight(self, request: CaseMcpPreflightRequest) -> CaseMcpPreflight:
         path = f"/api/case-runs/preflight?casePackId={quote(request.casePackId, safe='')}"
         if request.casePackVersion:
-            path = (
-                f"{path}&casePackVersion={quote(request.casePackVersion, safe='')}"
-            )
+            path = f"{path}&casePackVersion={quote(request.casePackVersion, safe='')}"
         payload = await self._request_json(
             "GET",
             path,

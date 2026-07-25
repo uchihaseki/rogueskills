@@ -31,6 +31,7 @@ from rogueskills.adapters.llm_finance_analyst import OpenAICompatibleFinanceAnal
 from rogueskills.adapters.llm_material_normalizer import OpenAICompatibleMaterialNormalizer
 from rogueskills.agents.finance_analyst import FinanceAnalyst, UnavailableFinanceAnalyst
 from rogueskills.agents.material_normalizer import MaterialNormalizer, UnavailableMaterialNormalizer
+from rogueskills.application.awesome_finance_import import AwesomeFinanceSkillsService
 from rogueskills.application.case_artifact_builder import DigestRuntimeArtifactBuilder
 from rogueskills.application.case_run_service import CaseRunService
 from rogueskills.application.discovery_service import DiscoverySearchService
@@ -56,6 +57,7 @@ from rogueskills.infrastructure.repository import SkillRepository
 from rogueskills.settings import Settings
 
 from .models import (
+    AwesomeFinanceImportRequest,
     ChooseMutationRequest,
     CreateAgentPresetRequest,
     CreateCaseRunRequest,
@@ -95,6 +97,7 @@ def create_app(
     skills = SkillService(repository)
     runs = RunService(repository)
     presets = AgentPresetService(repository, preset_repository)
+    awesome_finance = AwesomeFinanceSkillsService(repository)
     owns_client = http_client is None
     client = http_client or httpx.AsyncClient(
         timeout=httpx.Timeout(config.search_provider_timeout_seconds),
@@ -177,6 +180,16 @@ def create_app(
     for seed in SEED_SKILLS:
         if not repository.get_skill(seed["id"]):
             repository.save_skill(seed, source_id="seed", trusted_status=True)
+
+    # The checked-in Awesome Finance Skills snapshot is a local Demo fixture.
+    # Seed it only for the normal local database so isolated tests and explicitly
+    # configured databases retain the explicit import boundary.
+    awesome_root = config.project_root / "Awesome-finance-skills"
+    default_database_url = (
+        f"sqlite:///{(config.project_root / 'data' / 'rogueskills.db').resolve()}"
+    )
+    if awesome_root.is_dir() and config.database_url == default_database_url:
+        awesome_finance.run(root=awesome_root, auto_promote=True)
 
     def resolve_case_skill(
         *, skill_id: str, skill_version_id: str | None, auto_evolve: bool
@@ -420,6 +433,14 @@ def create_app(
             auto_promote=payload.autoPromote,
         )
 
+    @app.post("/api/scenarios/finance/import-awesome")
+    def import_awesome_finance(payload: AwesomeFinanceImportRequest) -> dict[str, Any]:
+        return awesome_finance.run(
+            root=config.project_root / "Awesome-finance-skills",
+            selected_names=payload.skillNames,
+            auto_promote=payload.autoPromote,
+        )
+
     @app.get("/api/finance/cases/preflight")
     def finance_case_preflight() -> dict[str, Any]:
         return finance_cases.preflight()
@@ -438,7 +459,9 @@ def create_app(
             ) from error
         return {
             "casePack": {
-                **next(item for item in case_pack_registry.descriptors() if item["ref"] == pack.ref),
+                **next(
+                    item for item in case_pack_registry.descriptors() if item["ref"] == pack.ref
+                ),
                 "inputSchema": pack.input_model.model_json_schema()
                 if pack.input_model is not None
                 else None,
@@ -530,9 +553,7 @@ def create_app(
         if not case:
             raise ApplicationError("CASE_RUN_NOT_FOUND", "Case Run 不存在。", status_code=404)
         report = (
-            case.get("finalReport")
-            if stage == "final"
-            else (case.get(stage) or {}).get("report")
+            case.get("finalReport") if stage == "final" else (case.get(stage) or {}).get("report")
         )
         if not report:
             raise ApplicationError(
@@ -619,9 +640,7 @@ def create_app(
 
     @app.get("/api/finance/cases")
     def list_finance_cases(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, Any]:
-        return {
-            "cases": case_store.list(limit=limit, case_pack_id="finance-stock-analysis")
-        }
+        return {"cases": case_store.list(limit=limit, case_pack_id="finance-stock-analysis")}
 
     @app.post("/api/finance/cases", status_code=201)
     async def create_finance_case(payload: CreateFinanceCaseRequest) -> dict[str, Any]:
@@ -640,9 +659,7 @@ def create_app(
     def get_finance_case(case_id: str) -> dict[str, Any]:
         case = case_store.get(case_id)
         if not case:
-            raise ApplicationError(
-                "FINANCE_CASE_NOT_FOUND", "金融 Case 不存在。", status_code=404
-            )
+            raise ApplicationError("FINANCE_CASE_NOT_FOUND", "金融 Case 不存在。", status_code=404)
         return {"case": case}
 
     @app.get("/api/finance/cases/{case_id}/report")
@@ -652,13 +669,9 @@ def create_app(
     ) -> dict[str, Any]:
         case = case_store.get(case_id)
         if not case:
-            raise ApplicationError(
-                "FINANCE_CASE_NOT_FOUND", "金融 Case 不存在。", status_code=404
-            )
+            raise ApplicationError("FINANCE_CASE_NOT_FOUND", "金融 Case 不存在。", status_code=404)
         report = (
-            case.get("finalReport")
-            if stage == "final"
-            else (case.get(stage) or {}).get("report")
+            case.get("finalReport") if stage == "final" else (case.get(stage) or {}).get("report")
         )
         if not report:
             raise ApplicationError(
@@ -670,9 +683,7 @@ def create_app(
     def get_finance_case_agent_preset(case_id: str) -> dict[str, Any]:
         case = case_store.get(case_id)
         if not case:
-            raise ApplicationError(
-                "FINANCE_CASE_NOT_FOUND", "金融 Case 不存在。", status_code=404
-            )
+            raise ApplicationError("FINANCE_CASE_NOT_FOUND", "金融 Case 不存在。", status_code=404)
         preset = case.get("agentPreset")
         if not preset:
             raise ApplicationError(
@@ -749,6 +760,15 @@ def create_app(
             ]
         }
 
+    @app.get("/api/skill-versions/{version_id}")
+    def get_skill_version(version_id: str) -> dict[str, Any]:
+        version = repository.get_skill_version(version_id)
+        if not version:
+            raise ApplicationError(
+                "SKILL_VERSION_NOT_FOUND", "Skill Version 不存在。", status_code=404
+            )
+        return {"version": version}
+
     @app.get("/api/evolution/catalog")
     def evolution_catalog() -> dict[str, Any]:
         return public_catalog()
@@ -756,6 +776,22 @@ def create_app(
     @app.post("/api/runs", status_code=201)
     def create_evolution_run(payload: CreateRunRequest) -> dict[str, Any]:
         return runs.create(seed=payload.seed, skill_id=payload.skillId, mode_id=payload.modeId)
+
+    @app.get("/api/runs")
+    def list_evolution_runs(
+        limit: int = Query(default=20, ge=1, le=100),
+        status: str | None = Query(default=None, min_length=1, max_length=32),
+    ) -> dict[str, Any]:
+        records = repository.list_runs(limit=limit, status=status)
+        return {
+            "runs": [
+                {
+                    **record,
+                    "artifact": preset_repository.get_by_run_id(record["run"]["id"]),
+                }
+                for record in records
+            ]
+        }
 
     @app.get("/api/runs/{run_id}")
     async def get_evolution_run(run_id: str) -> dict[str, Any]:
@@ -765,6 +801,62 @@ def create_app(
         return {
             **record,
             "artifact": preset_repository.get_by_run_id(run_id),
+        }
+
+    @app.get("/api/demo/context")
+    def get_demo_context() -> dict[str, Any]:
+        """Expose the latest local Evolution demo as a read-only host context.
+
+        This is intentionally separate from the mutation APIs.  A Codex MCP host
+        can call it after the presenter finishes the browser flow and immediately
+        answer questions about the selected Skill, accepted Mutations, Evolution
+        milestones, and generated AgentPreset.
+        """
+
+        records = repository.list_runs(limit=1)
+        if not records:
+            return {
+                "available": False,
+                "message": "尚未创建 Evolution Run，请先在前端选择 Skill 并运行自进化。",
+                "skill": None,
+                "run": None,
+                "artifact": None,
+                "catalog": {},
+            }
+        record = records[0]
+        run = record["run"]
+        artifact = preset_repository.get_by_run_id(run["id"])
+        catalog = public_catalog()
+        mutation_ids = set(run.get("mutationIds", []))
+        evolution_ids = set(run.get("evolutionIds", []))
+        monster_ids = {
+            item["monsterId"]
+            for item in run.get("encounterHistory", [])
+            if isinstance(item, dict) and item.get("monsterId")
+        }
+        context_run = {key: value for key, value in run.items() if key != "baseSkillGenome"}
+        return {
+            "available": True,
+            "message": "最新本地 Evolution Run 上下文。",
+            "skill": repository.get_skill(run["baseSkillId"]),
+            "run": {
+                **record,
+                "run": context_run,
+            },
+            "artifact": artifact,
+            "catalog": {
+                "mutations": [item for item in catalog["mutations"] if item["id"] in mutation_ids],
+                "evolutions": [
+                    item for item in catalog["evolutions"] if item["id"] in evolution_ids
+                ],
+                "monsters": {
+                    monster_id: catalog["monsters"][monster_id]
+                    for monster_id in monster_ids
+                    if monster_id in catalog["monsters"]
+                },
+                "statLabels": catalog["statLabels"],
+                "runMode": catalog["runModes"].get(run.get("modeId")),
+            },
         }
 
     @app.post("/api/runs/{run_id}/select-node")
@@ -836,9 +928,7 @@ def create_app(
         return {**record, "artifact": None}
 
     @app.post("/api/runs/{run_id}/agent-preset", status_code=201)
-    def create_agent_preset(
-        run_id: str, payload: CreateAgentPresetRequest
-    ) -> dict[str, Any]:
+    def create_agent_preset(run_id: str, payload: CreateAgentPresetRequest) -> dict[str, Any]:
         preset, created = presets.create(
             run_id=run_id,
             expected_revision=payload.expectedRevision,
@@ -868,9 +958,7 @@ def create_app(
         )
 
     @app.get("/api/agent-presets/{preset_id}/export/{target}")
-    def export_agent_preset_package(
-        preset_id: str, target: AgentPresetExportTarget
-    ) -> Response:
+    def export_agent_preset_package(preset_id: str, target: AgentPresetExportTarget) -> Response:
         try:
             artifact = build_agent_preset_export(presets.get(preset_id), target)
         except AgentPresetIntegrityError as error:

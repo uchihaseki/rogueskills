@@ -21,6 +21,21 @@ from rogueskills.contracts.case_mcp import (
     CaseMcpRunInput,
     CaseMcpRunSummary,
 )
+from rogueskills.contracts.demo_mcp import (
+    DemoMcpContext,
+    DemoMcpEmptyInput,
+    DemoMcpEvolutionRunDetail,
+    DemoMcpEvolutionRuns,
+    DemoMcpInitialSkills,
+    DemoMcpPresetDetail,
+    DemoMcpPresetRequest,
+    DemoMcpRunRequest,
+    DemoMcpRunsRequest,
+    DemoMcpSkillDetail,
+    DemoMcpSkillRequest,
+    DemoMcpSkillVersionDetail,
+    DemoMcpSkillVersionRequest,
+)
 from rogueskills.contracts.finance_mcp import (
     FinanceMcpAnalyzeStockInput,
     FinanceMcpCaseRequest,
@@ -63,17 +78,239 @@ class FinanceMcpBridge:
         allowed_case_pack_ids: set[str] | frozenset[str] | None = None,
         default_case_skill_versions: dict[str, str] | None = None,
         server_name: str = "rogueskills-finance",
+        include_demo_tools: bool = False,
     ) -> None:
         self.api = api
         self.default_finance_skill_id = (
-            default_finance_skill_id
-            or os.getenv("ROGUESKILLS_DEFAULT_FINANCE_SKILL_ID")
-            or None
+            default_finance_skill_id or os.getenv("ROGUESKILLS_DEFAULT_FINANCE_SKILL_ID") or None
         )
         self.allowed_case_pack_ids = self._resolve_allowed_case_packs(allowed_case_pack_ids)
         self.default_case_skill_versions = self._resolve_default_case_skill_versions(
             default_case_skill_versions
         )
+        tools = [
+            McpTool(
+                name="list_case_packs",
+                description=(
+                    "List only the RogueSkills Case Packs approved for this MCP host "
+                    "project. The Bridge filters the server catalog through its allowlist."
+                ),
+                input_schema=CaseMcpEmptyInput.model_json_schema(),
+                output_schema=CaseMcpPackList.model_json_schema(),
+                handler=self.list_case_packs,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_case_pack",
+                description=(
+                    "Read the input schema, capabilities, runtime policy, and Skill admission "
+                    "policy for one approved Case Pack."
+                ),
+                input_schema=CaseMcpPackRequest.model_json_schema(),
+                output_schema=CaseMcpPackDetail.model_json_schema(),
+                handler=self.get_case_pack,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="case_preflight",
+                description=(
+                    "Check an approved Case Pack's real Runtime and Provider readiness before "
+                    "starting a Live Case."
+                ),
+                input_schema=CaseMcpPreflightRequest.model_json_schema(),
+                output_schema=CaseMcpPreflight.model_json_schema(),
+                handler=self.case_preflight,
+                annotations=EXTERNAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="run_case",
+                description=(
+                    "Run an approved RogueSkills Case Pack through the generic Case API. "
+                    "skillVersionId optionally pins execution; autoEvolve must be explicitly "
+                    "authorized and cannot mutate a historical pinned version."
+                ),
+                input_schema=CaseMcpRunInput.model_json_schema(),
+                output_schema=CaseMcpRunSummary.model_json_schema(),
+                handler=self.run_case,
+                annotations=NONDESTRUCTIVE_RUN_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_case_run",
+                description=(
+                    "Read a compact generic Case Run summary, including verification, "
+                    "Mutation, score, outcome, Skill Version, and Artifact."
+                ),
+                input_schema=CaseMcpCaseRequest.model_json_schema(),
+                output_schema=CaseMcpRunSummary.model_json_schema(),
+                handler=self.get_case_run,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_case_report",
+                description=(
+                    "Read a baseline, evolved, or final typed Report for an approved Case Run. "
+                    "Facts are paged and large optional sections are context-limited."
+                ),
+                input_schema=CaseMcpReportRequest.model_json_schema(),
+                output_schema=CaseMcpReportEnvelope.model_json_schema(),
+                handler=self.get_case_report,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_case_evaluation",
+                description=(
+                    "Read the authoritative Evaluation and hard-gate results for one stage of "
+                    "an approved Case Run."
+                ),
+                input_schema=CaseMcpEvaluationRequest.model_json_schema(),
+                output_schema=CaseMcpEvaluationEnvelope.model_json_schema(),
+                handler=self.get_case_evaluation,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="list_initial_skills",
+                description=(
+                    "List compact summaries of the Initial Skill Library, including the "
+                    "default local Awesome Finance Skills. Use get_skill for the selected "
+                    "Skill's complete Genome."
+                ),
+                input_schema=DemoMcpEmptyInput.model_json_schema(),
+                output_schema=DemoMcpInitialSkills.model_json_schema(),
+                handler=self.list_initial_skills,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_skill",
+                description=(
+                    "Read one persisted Skill and its current Genome, workflow, constraints, "
+                    "provenance, capability evidence, evaluations, and version lineage."
+                ),
+                input_schema=DemoMcpSkillRequest.model_json_schema(),
+                output_schema=DemoMcpSkillDetail.model_json_schema(),
+                handler=self.get_skill,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_skill_version",
+                description=("Read one immutable Skill Version and its exact historical Genome."),
+                input_schema=DemoMcpSkillVersionRequest.model_json_schema(),
+                output_schema=DemoMcpSkillVersionDetail.model_json_schema(),
+                handler=self.get_skill_version,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="list_evolution_runs",
+                description=(
+                    "List the most recently updated browser Evolution Runs as compact "
+                    "summaries, including Skill, Mutation, Evolution, and AgentPreset IDs."
+                ),
+                input_schema=DemoMcpRunsRequest.model_json_schema(),
+                output_schema=DemoMcpEvolutionRuns.model_json_schema(),
+                handler=self.list_evolution_runs,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_evolution_run",
+                description=(
+                    "Read a complete browser Evolution Run plus the catalog details for its "
+                    "accepted Mutations and unlocked Evolutions."
+                ),
+                input_schema=DemoMcpRunRequest.model_json_schema(),
+                output_schema=DemoMcpEvolutionRunDetail.model_json_schema(),
+                handler=self.get_evolution_run,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_agent_preset",
+                description=(
+                    "Read the candidate AgentPreset generated by an Evolution Run, addressed "
+                    "by either presetId or runId. Preserve its runtimeVerified boundary."
+                ),
+                input_schema=DemoMcpPresetRequest.model_json_schema(),
+                output_schema=DemoMcpPresetDetail.model_json_schema(),
+                handler=self.get_agent_preset,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_demo_context",
+                description=(
+                    "Pick up the latest Evolution Run from the browser without copying IDs. "
+                    "Returns its selected Skill, Run, Mutation/Evolution catalog, and "
+                    "AgentPreset as one read-only demo context."
+                ),
+                input_schema=DemoMcpEmptyInput.model_json_schema(),
+                output_schema=DemoMcpContext.model_json_schema(),
+                handler=self.get_demo_context,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="finance_preflight",
+                description=(
+                    "Check whether the real RogueSkills Finance Case Runtime, analyst, "
+                    "and source policies are configured before starting an analysis."
+                ),
+                input_schema=FinanceMcpPreflightInput.model_json_schema(),
+                output_schema=FinanceMcpPreflight.model_json_schema(),
+                handler=self.finance_preflight,
+                annotations=EXTERNAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="analyze_stock",
+                description=(
+                    "Run a real RogueSkills public-company Finance Case using the "
+                    "configured analyst and approved public-data providers. autoEvolve "
+                    "must be explicitly enabled when Skill mutation is authorized."
+                ),
+                input_schema=FinanceMcpAnalyzeStockInput.model_json_schema(),
+                output_schema=FinanceMcpRunSummary.model_json_schema(),
+                handler=self.analyze_stock,
+                annotations=NONDESTRUCTIVE_RUN_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_finance_case",
+                description=(
+                    "Read the compact state, verification result, Skill versions, mutation, "
+                    "comparison, and AgentPreset summary for a Finance Case."
+                ),
+                input_schema=FinanceMcpCaseRequest.model_json_schema(),
+                output_schema=FinanceMcpRunSummary.model_json_schema(),
+                handler=self.get_finance_case,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_finance_report",
+                description=(
+                    "Read a baseline, evolved, or final evidence-bound Finance Report for "
+                    "an existing Case. Prefer final unless explaining the evolution diff."
+                ),
+                input_schema=FinanceMcpReportRequest.model_json_schema(),
+                output_schema=FinanceMcpReportEnvelope.model_json_schema(),
+                handler=self.get_finance_report,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_verified_agent_preset",
+                description=(
+                    "Read the compact Runtime AgentPreset identity and digest produced by a "
+                    "Finance Case that passed its evidence evaluation."
+                ),
+                input_schema=FinanceMcpCaseRequest.model_json_schema(),
+                output_schema=FinanceMcpPresetSummary.model_json_schema(),
+                handler=self.get_verified_agent_preset,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+        ]
+        demo_tool_names = {
+            "list_initial_skills",
+            "get_skill",
+            "get_skill_version",
+            "list_evolution_runs",
+            "get_evolution_run",
+            "get_agent_preset",
+            "get_demo_context",
+        }
+        if not include_demo_tools:
+            tools = [tool for tool in tools if tool.name not in demo_tool_names]
         self.server = StdioMcpServer(
             name=server_name,
             version="0.2.0",
@@ -83,142 +320,7 @@ class FinanceMcpBridge:
                 "describe an output as runtime verified unless runtimeVerified=true. Finance "
                 "aliases remain available for public-company analysis."
             ),
-            tools=[
-                McpTool(
-                    name="list_case_packs",
-                    description=(
-                        "List only the RogueSkills Case Packs approved for this MCP host "
-                        "project. The Bridge filters the server catalog through its allowlist."
-                    ),
-                    input_schema=CaseMcpEmptyInput.model_json_schema(),
-                    output_schema=CaseMcpPackList.model_json_schema(),
-                    handler=self.list_case_packs,
-                    annotations=LOCAL_READ_ANNOTATIONS,
-                ),
-                McpTool(
-                    name="get_case_pack",
-                    description=(
-                        "Read the input schema, capabilities, runtime policy, and Skill admission "
-                        "policy for one approved Case Pack."
-                    ),
-                    input_schema=CaseMcpPackRequest.model_json_schema(),
-                    output_schema=CaseMcpPackDetail.model_json_schema(),
-                    handler=self.get_case_pack,
-                    annotations=LOCAL_READ_ANNOTATIONS,
-                ),
-                McpTool(
-                    name="case_preflight",
-                    description=(
-                        "Check an approved Case Pack's real Runtime and Provider readiness before "
-                        "starting a Live Case."
-                    ),
-                    input_schema=CaseMcpPreflightRequest.model_json_schema(),
-                    output_schema=CaseMcpPreflight.model_json_schema(),
-                    handler=self.case_preflight,
-                    annotations=EXTERNAL_READ_ANNOTATIONS,
-                ),
-                McpTool(
-                    name="run_case",
-                    description=(
-                        "Run an approved RogueSkills Case Pack through the generic Case API. "
-                        "skillVersionId optionally pins execution; autoEvolve must be explicitly "
-                        "authorized and cannot mutate a historical pinned version."
-                    ),
-                    input_schema=CaseMcpRunInput.model_json_schema(),
-                    output_schema=CaseMcpRunSummary.model_json_schema(),
-                    handler=self.run_case,
-                    annotations=NONDESTRUCTIVE_RUN_ANNOTATIONS,
-                ),
-                McpTool(
-                    name="get_case_run",
-                    description=(
-                        "Read a compact generic Case Run summary, including verification, "
-                        "Mutation, score, outcome, Skill Version, and Artifact."
-                    ),
-                    input_schema=CaseMcpCaseRequest.model_json_schema(),
-                    output_schema=CaseMcpRunSummary.model_json_schema(),
-                    handler=self.get_case_run,
-                    annotations=LOCAL_READ_ANNOTATIONS,
-                ),
-                McpTool(
-                    name="get_case_report",
-                    description=(
-                        "Read a baseline, evolved, or final typed Report for an approved Case Run. "
-                        "Facts are paged and large optional sections are context-limited."
-                    ),
-                    input_schema=CaseMcpReportRequest.model_json_schema(),
-                    output_schema=CaseMcpReportEnvelope.model_json_schema(),
-                    handler=self.get_case_report,
-                    annotations=LOCAL_READ_ANNOTATIONS,
-                ),
-                McpTool(
-                    name="get_case_evaluation",
-                    description=(
-                        "Read the authoritative Evaluation and hard-gate results for one stage of "
-                        "an approved Case Run."
-                    ),
-                    input_schema=CaseMcpEvaluationRequest.model_json_schema(),
-                    output_schema=CaseMcpEvaluationEnvelope.model_json_schema(),
-                    handler=self.get_case_evaluation,
-                    annotations=LOCAL_READ_ANNOTATIONS,
-                ),
-                McpTool(
-                    name="finance_preflight",
-                    description=(
-                        "Check whether the real RogueSkills Finance Case Runtime, analyst, "
-                        "and source policies are configured before starting an analysis."
-                    ),
-                    input_schema=FinanceMcpPreflightInput.model_json_schema(),
-                    output_schema=FinanceMcpPreflight.model_json_schema(),
-                    handler=self.finance_preflight,
-                    annotations=EXTERNAL_READ_ANNOTATIONS,
-                ),
-                McpTool(
-                    name="analyze_stock",
-                    description=(
-                        "Run a real RogueSkills public-company Finance Case using the "
-                        "configured analyst and approved public-data providers. autoEvolve "
-                        "must be explicitly enabled when Skill mutation is authorized."
-                    ),
-                    input_schema=FinanceMcpAnalyzeStockInput.model_json_schema(),
-                    output_schema=FinanceMcpRunSummary.model_json_schema(),
-                    handler=self.analyze_stock,
-                    annotations=NONDESTRUCTIVE_RUN_ANNOTATIONS,
-                ),
-                McpTool(
-                    name="get_finance_case",
-                    description=(
-                        "Read the compact state, verification result, Skill versions, mutation, "
-                        "comparison, and AgentPreset summary for a Finance Case."
-                    ),
-                    input_schema=FinanceMcpCaseRequest.model_json_schema(),
-                    output_schema=FinanceMcpRunSummary.model_json_schema(),
-                    handler=self.get_finance_case,
-                    annotations=LOCAL_READ_ANNOTATIONS,
-                ),
-                McpTool(
-                    name="get_finance_report",
-                    description=(
-                        "Read a baseline, evolved, or final evidence-bound Finance Report for "
-                        "an existing Case. Prefer final unless explaining the evolution diff."
-                    ),
-                    input_schema=FinanceMcpReportRequest.model_json_schema(),
-                    output_schema=FinanceMcpReportEnvelope.model_json_schema(),
-                    handler=self.get_finance_report,
-                    annotations=LOCAL_READ_ANNOTATIONS,
-                ),
-                McpTool(
-                    name="get_verified_agent_preset",
-                    description=(
-                        "Read the compact Runtime AgentPreset identity and digest produced by a "
-                        "Finance Case that passed its evidence evaluation."
-                    ),
-                    input_schema=FinanceMcpCaseRequest.model_json_schema(),
-                    output_schema=FinanceMcpPresetSummary.model_json_schema(),
-                    handler=self.get_verified_agent_preset,
-                    annotations=LOCAL_READ_ANNOTATIONS,
-                ),
-            ],
+            tools=tools,
         )
 
     @staticmethod
@@ -282,9 +384,7 @@ class FinanceMcpBridge:
         CaseMcpEmptyInput.model_validate(arguments)
         catalog = await self.api.list_case_packs()
         return CaseMcpPackList(
-            casePacks=[
-                item for item in catalog.casePacks if item.id in self.allowed_case_pack_ids
-            ]
+            casePacks=[item for item in catalog.casePacks if item.id in self.allowed_case_pack_ids]
         )
 
     async def get_case_pack(self, arguments: dict[str, Any]) -> CaseMcpPackDetail:
@@ -322,13 +422,39 @@ class FinanceMcpBridge:
         self._ensure_case_pack_allowed(run.casePackId)
         return await self.api.get_case_report(request)
 
-    async def get_case_evaluation(
-        self, arguments: dict[str, Any]
-    ) -> CaseMcpEvaluationEnvelope:
+    async def get_case_evaluation(self, arguments: dict[str, Any]) -> CaseMcpEvaluationEnvelope:
         request = CaseMcpEvaluationRequest.model_validate(arguments)
         run = await self.api.get_case_run(CaseMcpCaseRequest(caseId=request.caseId))
         self._ensure_case_pack_allowed(run.casePackId)
         return await self.api.get_case_evaluation(request)
+
+    async def list_initial_skills(self, arguments: dict[str, Any]) -> DemoMcpInitialSkills:
+        request = DemoMcpEmptyInput.model_validate(arguments)
+        return await self.api.list_initial_skills(request)
+
+    async def get_skill(self, arguments: dict[str, Any]) -> DemoMcpSkillDetail:
+        request = DemoMcpSkillRequest.model_validate(arguments)
+        return await self.api.get_skill(request)
+
+    async def get_skill_version(self, arguments: dict[str, Any]) -> DemoMcpSkillVersionDetail:
+        request = DemoMcpSkillVersionRequest.model_validate(arguments)
+        return await self.api.get_skill_version(request)
+
+    async def list_evolution_runs(self, arguments: dict[str, Any]) -> DemoMcpEvolutionRuns:
+        request = DemoMcpRunsRequest.model_validate(arguments)
+        return await self.api.list_evolution_runs(request)
+
+    async def get_evolution_run(self, arguments: dict[str, Any]) -> DemoMcpEvolutionRunDetail:
+        request = DemoMcpRunRequest.model_validate(arguments)
+        return await self.api.get_evolution_run(request)
+
+    async def get_agent_preset(self, arguments: dict[str, Any]) -> DemoMcpPresetDetail:
+        request = DemoMcpPresetRequest.model_validate(arguments)
+        return await self.api.get_agent_preset(request)
+
+    async def get_demo_context(self, arguments: dict[str, Any]) -> DemoMcpContext:
+        request = DemoMcpEmptyInput.model_validate(arguments)
+        return await self.api.get_demo_context(request)
 
     async def finance_preflight(self, arguments: dict[str, Any]) -> FinanceMcpPreflight:
         self._ensure_case_pack_allowed("finance-stock-analysis")
@@ -350,9 +476,7 @@ class FinanceMcpBridge:
         self._ensure_case_pack_allowed("finance-stock-analysis")
         return await self.api.get_finance_report(FinanceMcpReportRequest.model_validate(arguments))
 
-    async def get_verified_agent_preset(
-        self, arguments: dict[str, Any]
-    ) -> FinanceMcpPresetSummary:
+    async def get_verified_agent_preset(self, arguments: dict[str, Any]) -> FinanceMcpPresetSummary:
         self._ensure_case_pack_allowed("finance-stock-analysis")
         return await self.api.get_verified_agent_preset(
             FinanceMcpCaseRequest.model_validate(arguments)
