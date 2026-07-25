@@ -1906,6 +1906,7 @@
     }
 }
 
+
 @media (max-width: 620px) {
     .finance-model {
         min-width: 0;
@@ -2512,4 +2513,431 @@
     color: var(--lime);
     font: 700 9px var(--mono);
     text-decoration: none;
+}
+
+/* Pixel discovery theme */
+.discovery-shell {
+    --discovery-pixel-bg: #070b09;
+    --discovery-pixel-panel: #0b120d;
+    --discovery-pixel-panel-alt: #0d1610;
+    --discovery-pixel-line: #38493b;
+    --discovery-pixel-line-soft: #28352b;
+    --discovery-pixel-shadow: #020302;
+    position: relative;
+    isolation: isolate;
+    color: #dce6de;
+    background:
+        linear-gradient(rgba(185,242,95,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(185,242,95,.025) 1px, transparent 1px),
+        var(--discovery-pixel-bg);
+    background-size: 24px 24px;
+    font-family: var(--mono);
+    image-rendering: pixelated;
+}
+
+.discovery-shell::after {
+    position: fixed;
+    z-index: 90;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(to bottom, transparent 0 3px, rgba(0,0,0,.1) 3px 4px);
+    content: '';
+}
+
+.discovery-shell :where(button, input, textarea, select, a) {
+    font-family: var(--mono);
+}
+
+.discovery-shell :where(.discovery-nav, .discovery-hero, .subpage-heading, .result-section, .discovery-footer) {
+    border-color: var(--discovery-pixel-line);
+}
+
+.discovery-shell .discovery-nav {
+    position: relative;
+    z-index: 3;
+    min-height: 82px;
+    border-bottom-width: 3px;
+    background: rgba(7,11,9,.94);
+}
+
+.discovery-shell .brand-mark {
+    border: 3px solid var(--lime);
+    border-radius: 0;
+    color: #071008;
+    background: var(--lime);
+    box-shadow: inset 0 -4px 0 #789b46, 4px 4px 0 var(--discovery-pixel-shadow);
+    transform: none;
+}
+
+.discovery-shell .brand strong,
+.discovery-shell h1,
+.discovery-shell h2,
+.discovery-shell h3,
+.discovery-shell strong {
+    font-weight: 900;
+}
+
+.discovery-shell h1,
+.discovery-shell h2,
+.discovery-shell h3 {
+    letter-spacing: 0;
+}
+
+.discovery-shell .discovery-tabs {
+    padding: 5px;
+    border: 2px solid var(--discovery-pixel-line);
+    border-radius: 0;
+    background: #080d0a;
+    box-shadow: 4px 4px 0 var(--discovery-pixel-shadow);
+}
+
+.discovery-shell .discovery-tabs button {
+    min-height: 34px;
+    border: 2px solid transparent;
+    border-radius: 0;
+    font-weight: 900;
+    transition: none;
+}
+
+.discovery-shell .discovery-tabs button:hover,
+.discovery-shell .discovery-tabs button:focus-visible {
+    border-color: var(--lime);
+    outline: 0;
+    color: var(--lime);
+}
+
+.discovery-shell .discovery-tabs button.active {
+    border-color: var(--lime);
+    color: #071008;
+    background: var(--lime);
+    box-shadow: inset 0 -3px 0 #789b46;
+    text-shadow: none;
+}
+
+.discovery-shell .discovery-tabs button.active:hover,
+.discovery-shell .discovery-tabs button.active:focus-visible {
+    color: #071008;
+}
+
+.discovery-shell .discovery-tabs button.active span {
+    color: #071008;
+    background: rgba(7, 16, 8, .16);
+}
+
+.discovery-shell .discovery-tabs button span,
+.discovery-shell :where(.risk-badge, .repository-status, .quarantine-tag, .provider-status, .candidate-source > span, .candidate-tags span, .tool-list i, .library-gates span) {
+    border-radius: 0;
+}
+
+.discovery-shell .back-to-run {
+    padding: 8px 10px;
+    border: 2px solid var(--discovery-pixel-line);
+    background: #0b120d;
+    box-shadow: 3px 3px 0 var(--discovery-pixel-shadow);
+    font-weight: 900;
+}
+
+.discovery-shell .back-to-run:hover,
+.discovery-shell .back-to-run:focus-visible {
+    border-color: var(--lime);
+    outline: 0;
+    transform: translate(-2px,-2px);
+}
+
+.discovery-shell .discovery-notice {
+    border-width: 2px;
+    border-radius: 0;
+    box-shadow: 5px 5px 0 var(--discovery-pixel-shadow);
+    font-weight: 800;
+}
+
+.discovery-shell .discovery-notice span {
+    border-radius: 0;
+    box-shadow: 2px 2px 0 var(--discovery-pixel-shadow);
+}
+
+.discovery-shell :where(.discovery-hero, .subpage-heading) {
+    position: relative;
+    border-bottom-width: 3px;
+    background: rgba(8,13,10,.74);
+}
+
+.discovery-shell :where(.discovery-hero, .subpage-heading)::before {
+    position: absolute;
+    top: 22px;
+    left: 0;
+    width: 58px;
+    height: 6px;
+    background: repeating-linear-gradient(90deg, var(--lime) 0 8px, transparent 8px 11px);
+    content: '';
+}
+
+.discovery-shell :where(.discovery-hero h1, .subpage-heading h1) {
+    max-width: 920px;
+    color: #edf5ef;
+    font-family: var(--mono);
+    font-size: clamp(30px, 3.5vw, 52px);
+    line-height: 1.12;
+    text-shadow: 3px 3px 0 #334334, 6px 6px 0 var(--discovery-pixel-shadow);
+}
+
+.discovery-shell :where(.discovery-stats, .library-overview, .pipeline-mini, .finance-model) {
+    border: 3px solid var(--discovery-pixel-line);
+    border-radius: 0;
+    background: var(--discovery-pixel-panel);
+    box-shadow: 5px 5px 0 var(--discovery-pixel-shadow);
+}
+
+.discovery-shell :where(.discovery-stats div, .library-overview div) {
+    border-color: var(--discovery-pixel-line-soft);
+}
+
+.discovery-shell :where(.discovery-stats strong, .library-overview strong) {
+    font-family: var(--mono);
+    text-shadow: 2px 2px 0 var(--discovery-pixel-shadow);
+}
+
+.discovery-shell .search-box {
+    border: 3px solid #607d43;
+    border-radius: 0;
+    background: #0b120d;
+    box-shadow: 7px 7px 0 var(--discovery-pixel-shadow), inset 0 0 0 1px rgba(185,242,95,.08);
+}
+
+.discovery-shell .search-box input {
+    min-width: 0;
+    font-family: var(--mono);
+}
+
+.discovery-shell :where(.search-box button, .convert-button, .finance-launch button, .primary-button, .stage-button, .library-actions button.promote-button) {
+    border: 3px solid var(--lime);
+    border-radius: 0;
+    color: #071008;
+    background: var(--lime);
+    box-shadow: inset 0 -4px 0 #789b46, 4px 4px 0 var(--discovery-pixel-shadow);
+    font-weight: 900;
+    transition: none;
+}
+
+.discovery-shell :where(.search-box button, .convert-button, .finance-launch button, .primary-button, .stage-button, .library-actions button.promote-button):hover:not(:disabled),
+.discovery-shell :where(.search-box button, .convert-button, .finance-launch button, .primary-button, .stage-button, .library-actions button.promote-button):focus-visible:not(:disabled) {
+    outline: 0;
+    background: #ceff7d;
+    transform: translate(-2px,-2px);
+}
+
+.discovery-shell :where(.query-examples button, .kind-filters button, .file-button, .library-actions button, .candidate-actions a) {
+    border: 2px solid var(--discovery-pixel-line);
+    border-radius: 0;
+    color: #aebbb1;
+    background: #0a100c;
+    box-shadow: 2px 2px 0 var(--discovery-pixel-shadow);
+    font-weight: 800;
+}
+
+.discovery-shell :where(.query-examples button, .kind-filters button, .file-button, .library-actions button, .candidate-actions a):hover,
+.discovery-shell :where(.query-examples button, .kind-filters button, .file-button, .library-actions button, .candidate-actions a):focus-visible {
+    border-color: var(--lime);
+    outline: 0;
+    color: var(--lime);
+}
+
+.discovery-shell .kind-filters button.active {
+    border-color: var(--lime);
+    color: #071008;
+    background: var(--lime);
+}
+
+.discovery-shell :where(.connector-card, .candidate-card, .material-editor, .genome-panel, .genome-block, .gate-list div, .gate-explainer, .library-item, .finance-pipeline > div, .finance-launch, .finance-summary div, .finance-result-panel, .finance-rejected, .finance-result-item, .empty-state) {
+    border: 2px solid var(--discovery-pixel-line);
+    border-radius: 0;
+    background: var(--discovery-pixel-panel);
+    box-shadow: 4px 4px 0 var(--discovery-pixel-shadow);
+}
+
+.discovery-shell :where(.connector-card, .candidate-card, .library-item) {
+    transition: none;
+}
+
+.discovery-shell :where(.connector-card:hover:not(.disabled), .connector-card.selected, .candidate-card:hover, .library-item:hover) {
+    border-color: var(--lime);
+    background: var(--discovery-pixel-panel-alt);
+    transform: translate(-2px,-2px);
+    box-shadow: 6px 6px 0 var(--discovery-pixel-shadow);
+}
+
+.discovery-shell .connector-card.selected {
+    box-shadow: inset 4px 0 0 var(--lime), 6px 6px 0 var(--discovery-pixel-shadow);
+}
+
+.discovery-shell .connector-mark,
+.discovery-shell .library-icon,
+.discovery-shell .empty-state > span,
+.discovery-shell .genome-empty > span {
+    border: 2px solid var(--discovery-pixel-line);
+    border-radius: 0;
+    background: #101a13;
+    box-shadow: 3px 3px 0 var(--discovery-pixel-shadow);
+    transform: none;
+}
+
+.discovery-shell :where(.candidate-source > span, .risk-badge, .repository-status, .quarantine-tag, .tool-list i, .library-gates span) {
+    border: 1px solid var(--discovery-pixel-line-soft);
+    background: #0a100c;
+    font-weight: 800;
+}
+
+.discovery-shell :where(.score-breakdown, .conversion-boundary) {
+    border: 2px solid var(--discovery-pixel-line-soft);
+    border-radius: 0;
+    background: #080d0a;
+}
+
+.discovery-shell .candidate-score {
+    border-color: var(--discovery-pixel-line-soft);
+}
+
+.discovery-shell .candidate-score i {
+    height: 7px;
+    padding: 1px;
+    border: 1px solid var(--discovery-pixel-line);
+    background: #050806;
+}
+
+.discovery-shell .candidate-score i b {
+    background: repeating-linear-gradient(90deg, var(--lime) 0 5px, transparent 5px 7px);
+    transition: width 420ms steps(10,end);
+    animation: discovery-meter-pulse 1.8s steps(8,end) infinite;
+}
+
+.discovery-shell :where(.text-field, #material-content, #material-license) {
+    border: 2px solid var(--discovery-pixel-line);
+    border-radius: 0;
+    color: var(--text);
+    background: #070b08;
+    box-shadow: inset 2px 2px 0 var(--discovery-pixel-shadow);
+}
+
+.discovery-shell :where(.text-field, #material-content, #material-license):focus {
+    border-color: var(--lime);
+    box-shadow: inset 2px 2px 0 var(--discovery-pixel-shadow), 3px 3px 0 rgba(185,242,95,.14);
+}
+
+.discovery-shell .genome-panel {
+    background:
+        linear-gradient(rgba(185,242,95,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(185,242,95,.025) 1px, transparent 1px),
+        var(--discovery-pixel-panel);
+    background-size: 24px 24px;
+}
+
+.discovery-shell .completeness-ring {
+    border: 3px solid var(--discovery-pixel-line);
+    border-radius: 0;
+    background: conic-gradient(var(--lime) var(--score), #101711 0);
+    box-shadow: inset 0 0 0 7px var(--discovery-pixel-panel-strong, #151c18), 4px 4px 0 var(--discovery-pixel-shadow);
+    transition: background 420ms steps(10,end);
+}
+
+.discovery-shell .genome-block li b,
+.discovery-shell .genome-block ul li::before,
+.discovery-shell .library-gates i {
+    border-radius: 0;
+}
+
+.discovery-shell .finance-pipeline > i {
+    color: var(--lime);
+    font: 900 15px var(--mono);
+}
+
+.discovery-shell .finance-launch {
+    background: var(--discovery-pixel-panel-alt);
+}
+
+.discovery-shell :where(.search-console.is-searching .search-box, .finance-launch.is-running) {
+    border-color: var(--cyan);
+    animation: discovery-loading-frame .9s steps(2,end) infinite;
+}
+
+.discovery-shell :where(button[aria-busy='true']) {
+    position: relative;
+    overflow: hidden;
+}
+
+.discovery-shell :where(button[aria-busy='true'])::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: repeating-linear-gradient(90deg, var(--cyan) 0 12px, transparent 12px 18px);
+    content: '';
+    animation: discovery-loading-stripes .7s steps(6,end) infinite;
+}
+
+.discovery-shell .discovery-footer {
+    border-top-width: 3px;
+    font-weight: 800;
+}
+
+@keyframes discovery-meter-pulse {
+    0%,100% { filter: brightness(.9); }
+    50% { filter: brightness(1.2); }
+}
+
+@keyframes discovery-loading-frame {
+    0%,100% { box-shadow: 4px 4px 0 var(--discovery-pixel-shadow); }
+    50% { box-shadow: 7px 7px 0 var(--discovery-pixel-shadow); }
+}
+
+@keyframes discovery-loading-stripes {
+    from { background-position: 0 0; }
+    to { background-position: 36px 0; }
+}
+
+@media (max-width: 760px) {
+    .discovery-shell :where(.discovery-hero h1, .subpage-heading h1) {
+        font-size: 30px;
+    }
+
+    .discovery-shell :where(.discovery-stats, .library-overview) {
+        box-shadow: 3px 3px 0 var(--discovery-pixel-shadow);
+    }
+}
+
+@media (max-width: 520px) {
+    .discovery-shell .discovery-nav {
+        padding-top: 8px;
+    }
+
+    .discovery-shell .discovery-tabs {
+        overflow-x: auto;
+        justify-content: flex-start;
+    }
+
+    .discovery-shell .discovery-tabs button {
+        min-width: max-content;
+    }
+
+    .discovery-shell :where(.candidate-card, .material-editor, .genome-panel, .library-item, .finance-result-panel, .finance-rejected) {
+        padding: 14px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .discovery-shell::after {
+        display: none;
+    }
+
+    .discovery-shell *,
+    .discovery-shell *::before,
+    .discovery-shell *::after {
+        scroll-behavior: auto !important;
+        animation: none !important;
+        transition: none !important;
+    }
+
+    .discovery-shell :where(.connector-card, .candidate-card, .library-item):hover {
+        transform: none;
+    }
 }

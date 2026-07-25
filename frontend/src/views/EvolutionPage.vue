@@ -183,7 +183,10 @@ onBeforeUnmount(disposePage)
       @ready="startPreparedTransition"
       @done="finishTitleTransition"
     />
-    <EvolutionUtilityNav />
+    <EvolutionUtilityNav
+      :show-character-select="Boolean(controller.run && showRunView)"
+      @select-character="controller.returnToSetup"
+    />
     <RunView v-if="controller.run && showRunView" :controller="controller" />
     <template v-else>
       <TitleView v-if="stage === 'title'" key="title" @start="startCharacterStage" />

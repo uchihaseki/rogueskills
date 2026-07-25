@@ -374,9 +374,13 @@ button {
   z-index: 40;
   top: 18px;
   right: 22px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
 }
 
-.evolution-utility-nav a {
+.evolution-utility-nav a,
+.evolution-utility-nav button {
   display: flex;
   min-height: 38px;
   align-items: center;
@@ -391,15 +395,22 @@ button {
   text-decoration: none;
 }
 
+.evolution-utility-nav button {
+  cursor: pointer;
+}
+
 .evolution-utility-nav a:hover,
-.evolution-utility-nav a:focus-visible {
+.evolution-utility-nav a:focus-visible,
+.evolution-utility-nav button:hover,
+.evolution-utility-nav button:focus-visible {
   border-color: var(--lime);
   outline: 0;
   color: var(--lime);
   transform: translate(-2px, -2px);
 }
 
-.evolution-utility-nav a:focus-visible {
+.evolution-utility-nav a:focus-visible,
+.evolution-utility-nav button:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 3px;
 }
@@ -4225,7 +4236,8 @@ button {
     right: 10px;
   }
 
-  .evolution-utility-nav a {
+  .evolution-utility-nav a,
+  .evolution-utility-nav button {
     min-height: 34px;
     padding: 6px 8px;
   }

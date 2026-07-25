@@ -17,9 +17,9 @@ defineProps<{ controller: DiscoveryController }>()
     <div><b>04</b><strong>准入入库</strong><span>Schema、Benchmark、Initial Library</span></div>
   </section>
 
-  <section class="finance-launch">
+  <section class="finance-launch" :class="{ 'is-running': controller.state.financeRunning }">
     <div><span>FINANCIAL STOCK ANALYSIS</span><h2>一键初始化场景武器库</h2><p>默认选取最多 2 个社区候选，并转换“基本面与估值分析”“财报与业绩电话会复盘”两份 SOP。该操作会调用 GitHub 和后端配置的 Qwen 模型；点击按钮同时表示允许所有通过 License、安全和 Admission 硬门槛的结果批量进入 Initial Library。</p></div>
-    <button :disabled="controller.state.financeRunning || !controller.state.normalizer?.configured" @click="controller.runFinanceBootstrap">
+    <button :disabled="controller.state.financeRunning || !controller.state.normalizer?.configured" :aria-busy="controller.state.financeRunning" @click="controller.runFinanceBootstrap">
       {{ controller.state.financeRunning ? '正在检索、筛选和归一化…' : '开始自动构建' }} <b>→</b>
     </button>
   </section>
