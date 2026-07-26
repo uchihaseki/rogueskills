@@ -157,7 +157,7 @@ class RunService:
         if previous.get("automation", {}).get("status") == "running" and not allow_automation:
             raise ApplicationError(
                 "AUTOMATIC_RUN_IN_PROGRESS",
-                "自动进化运行中，不能插入手动节点操作。",
+                "自动 Evaluation Run 运行中，不能插入手动测试操作。",
                 status_code=409,
             )
         next_state = transition(deepcopy(previous))
@@ -203,7 +203,7 @@ class RunService:
         if unknown:
             raise ApplicationError(
                 "INVALID_AUTOMATION_MONSTERS",
-                "所选怪物不属于当前 Evolution Run 场景。",
+                "所选 Failure Mode 不属于当前 Evaluation Run。",
                 status_code=422,
                 details={"monsterIds": unknown},
             )

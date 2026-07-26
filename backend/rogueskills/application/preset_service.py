@@ -56,7 +56,7 @@ class AgentPresetService:
         if run.get("status") != "victory" or run.get("phase") != "ended":
             raise ApplicationError(
                 "RUN_NOT_VICTORIOUS",
-                "只有已通关的 Evolution Run 才能生成 AgentPreset。",
+                "只有通过 Hidden Holdout 的 Evaluation Run 才能生成 AgentPreset。",
                 status_code=409,
             )
         version = self.skills.get_skill_version(record["baseSkillVersionId"])
@@ -87,5 +87,7 @@ class AgentPresetService:
     def get(self, preset_id: str) -> dict[str, Any]:
         preset = self.presets.get(preset_id)
         if not preset:
-            raise ApplicationError("AGENT_PRESET_NOT_FOUND", "AgentPreset 不存在。", status_code=404)
+            raise ApplicationError(
+                "AGENT_PRESET_NOT_FOUND", "AgentPreset 不存在。", status_code=404
+            )
         return preset

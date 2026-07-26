@@ -21,6 +21,18 @@ from rogueskills.contracts.case_mcp import (
     CaseMcpRunInput,
     CaseMcpRunSummary,
 )
+from rogueskills.contracts.case_validation_mcp import (
+    CaseValidationMcpComparison,
+    CaseValidationMcpContext,
+    CaseValidationMcpDemoScript,
+    CaseValidationMcpDetail,
+    CaseValidationMcpEmptyInput,
+    CaseValidationMcpList,
+    CaseValidationMcpRequest,
+    CaseValidationMcpRunRequest,
+    CaseValidationMcpSummary,
+    CaseValidationMcpValidateInput,
+)
 from rogueskills.contracts.demo_mcp import (
     DemoMcpContext,
     DemoMcpEmptyInput,
@@ -244,6 +256,74 @@ class FinanceMcpBridge:
                 annotations=LOCAL_READ_ANNOTATIONS,
             ),
             McpTool(
+                name="list_case_validations",
+                description=(
+                    "List the persisted real Case validations for one browser Evolution Run, "
+                    "including score delta, repaired gates, verification, acceptance, and promotion."
+                ),
+                input_schema=CaseValidationMcpRunRequest.model_json_schema(),
+                output_schema=CaseValidationMcpList.model_json_schema(),
+                handler=self.list_case_validations,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_latest_case_validation_context",
+                description=(
+                    "Discover the latest browser Evolution Run CaseValidation without asking "
+                    "the user to copy a Run, Preset, Replay, or Validation ID."
+                ),
+                input_schema=CaseValidationMcpEmptyInput.model_json_schema(),
+                output_schema=CaseValidationMcpContext.model_json_schema(),
+                handler=self.get_latest_case_validation_context,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_case_validation_demo_script",
+                description=(
+                    "Generate a business-first Chinese talk track for the latest persisted "
+                    "CaseValidation: company report first, then same-source A/B, Candidate "
+                    "formation from Node History, associated repairs, and promotion boundaries."
+                ),
+                input_schema=CaseValidationMcpEmptyInput.model_json_schema(),
+                output_schema=CaseValidationMcpDemoScript.model_json_schema(),
+                handler=self.get_case_validation_demo_script,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="validate_evolution_run_on_case",
+                description=(
+                    "Create an idempotent Verified Replay A/B between a browser Evolution "
+                    "Run's Base Skill Version and immutable Candidate AgentPreset. This may "
+                    "promote an accepted Candidate to a new Runtime-bound Skill Version."
+                ),
+                input_schema=CaseValidationMcpValidateInput.model_json_schema(),
+                output_schema=CaseValidationMcpSummary.model_json_schema(),
+                handler=self.validate_evolution_run_on_case,
+                annotations=NONDESTRUCTIVE_RUN_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_case_validation",
+                description=(
+                    "Read the complete persisted CaseValidation, including both business "
+                    "Reports, Evaluations, source and dataset digests, and promotion evidence."
+                ),
+                input_schema=CaseValidationMcpRequest.model_json_schema(),
+                output_schema=CaseValidationMcpDetail.model_json_schema(),
+                handler=self.get_case_validation,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
+                name="get_case_validation_comparison",
+                description=(
+                    "Read the compact Baseline/Candidate comparison, repaired hard gates, "
+                    "associated contributions, and promotion result for one CaseValidation."
+                ),
+                input_schema=CaseValidationMcpRequest.model_json_schema(),
+                output_schema=CaseValidationMcpComparison.model_json_schema(),
+                handler=self.get_case_validation_comparison,
+                annotations=LOCAL_READ_ANNOTATIONS,
+            ),
+            McpTool(
                 name="finance_preflight",
                 description=(
                     "Check whether the real RogueSkills Finance Case Runtime, analyst, "
@@ -308,6 +388,12 @@ class FinanceMcpBridge:
             "get_evolution_run",
             "get_agent_preset",
             "get_demo_context",
+            "list_case_validations",
+            "get_latest_case_validation_context",
+            "get_case_validation_demo_script",
+            "validate_evolution_run_on_case",
+            "get_case_validation",
+            "get_case_validation_comparison",
         }
         if not include_demo_tools:
             tools = [tool for tool in tools if tool.name not in demo_tool_names]
@@ -455,6 +541,41 @@ class FinanceMcpBridge:
     async def get_demo_context(self, arguments: dict[str, Any]) -> DemoMcpContext:
         request = DemoMcpEmptyInput.model_validate(arguments)
         return await self.api.get_demo_context(request)
+
+    async def list_case_validations(self, arguments: dict[str, Any]) -> CaseValidationMcpList:
+        request = CaseValidationMcpRunRequest.model_validate(arguments)
+        return await self.api.list_case_validations(request)
+
+    async def get_latest_case_validation_context(
+        self, arguments: dict[str, Any]
+    ) -> CaseValidationMcpContext:
+        request = CaseValidationMcpEmptyInput.model_validate(arguments)
+        return await self.api.get_latest_case_validation_context(request)
+
+    async def get_case_validation_demo_script(
+        self, arguments: dict[str, Any]
+    ) -> CaseValidationMcpDemoScript:
+        request = CaseValidationMcpEmptyInput.model_validate(arguments)
+        return await self.api.get_case_validation_demo_script(request)
+
+    async def validate_evolution_run_on_case(
+        self, arguments: dict[str, Any]
+    ) -> CaseValidationMcpSummary:
+        request = CaseValidationMcpValidateInput.model_validate(arguments)
+        self._ensure_case_pack_allowed(request.casePackId)
+        return await self.api.validate_evolution_run_on_case(request)
+
+    async def get_case_validation(self, arguments: dict[str, Any]) -> CaseValidationMcpDetail:
+        return await self.api.get_case_validation(
+            CaseValidationMcpRequest.model_validate(arguments)
+        )
+
+    async def get_case_validation_comparison(
+        self, arguments: dict[str, Any]
+    ) -> CaseValidationMcpComparison:
+        return await self.api.get_case_validation_comparison(
+            CaseValidationMcpRequest.model_validate(arguments)
+        )
 
     async def finance_preflight(self, arguments: dict[str, Any]) -> FinanceMcpPreflight:
         self._ensure_case_pack_allowed("finance-stock-analysis")

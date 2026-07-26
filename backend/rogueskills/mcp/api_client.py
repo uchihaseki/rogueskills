@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any
 from urllib.parse import quote, urlsplit
@@ -23,6 +24,19 @@ from rogueskills.contracts.case_mcp import (
     CaseMcpRunSummary,
     build_case_mcp_report,
     summarize_case_run,
+)
+from rogueskills.contracts.case_validation_mcp import (
+    CaseValidationMcpComparison,
+    CaseValidationMcpContext,
+    CaseValidationMcpDemoScript,
+    CaseValidationMcpDetail,
+    CaseValidationMcpEmptyInput,
+    CaseValidationMcpList,
+    CaseValidationMcpRequest,
+    CaseValidationMcpRunRequest,
+    CaseValidationMcpSummary,
+    CaseValidationMcpValidateInput,
+    summarize_case_validation,
 )
 from rogueskills.contracts.demo_mcp import (
     DemoMcpContext,
@@ -248,6 +262,244 @@ class RogueSkillsApiClient:
             "GET", "/api/demo/context", timeout_ms=self.limits.readTimeoutMs
         )
         return DemoMcpContext.model_validate(payload)
+
+    @staticmethod
+    def _validation_payload(payload: dict[str, Any]) -> dict[str, Any]:
+        validation = payload.get("validation")
+        if not isinstance(validation, dict):
+            raise RogueSkillsApiError(
+                FinanceMcpError(
+                    code="ROGUESKILLS_INVALID_RESPONSE",
+                    message="RogueSkills API response does not contain a CaseValidation.",
+                    retryable=False,
+                )
+            )
+        return validation
+
+    async def list_case_validations(
+        self, request: CaseValidationMcpRunRequest
+    ) -> CaseValidationMcpList:
+        payload = await self._request_json(
+            "GET",
+            f"/api/runs/{quote(request.runId, safe='')}/case-validations?limit={request.limit}",
+            timeout_ms=self.limits.readTimeoutMs,
+        )
+        return CaseValidationMcpList(
+            validations=[
+                summarize_case_validation(item)
+                for item in payload.get("validations", [])
+                if isinstance(item, dict)
+            ]
+        )
+
+    async def get_case_validation(
+        self, request: CaseValidationMcpRequest
+    ) -> CaseValidationMcpDetail:
+        payload = await self._request_json(
+            "GET",
+            f"/api/case-validations/{quote(request.validationId, safe='')}",
+            timeout_ms=self.limits.readTimeoutMs,
+        )
+        return CaseValidationMcpDetail(validation=self._validation_payload(payload))
+
+    async def get_case_validation_comparison(
+        self, request: CaseValidationMcpRequest
+    ) -> CaseValidationMcpComparison:
+        detail = await self.get_case_validation(request)
+        validation = detail.validation
+        comparison = validation.get("comparison")
+        if not isinstance(comparison, dict):
+            raise RogueSkillsApiError(
+                FinanceMcpError(
+                    code="CASE_VALIDATION_COMPARISON_NOT_AVAILABLE",
+                    message="The CaseValidation comparison is not available yet.",
+                    retryable=validation.get("status") in {"queued", "running"},
+                    details={"validationId": request.validationId},
+                )
+            )
+        return CaseValidationMcpComparison(
+            validationId=request.validationId,
+            comparison=comparison,
+            contributionCoverage=list(validation.get("contributionCoverage", [])),
+            promotion=dict(validation.get("promotion") or {}),
+        )
+
+    async def validate_evolution_run_on_case(
+        self, request: CaseValidationMcpValidateInput
+    ) -> CaseValidationMcpSummary:
+        payload = await self._request_json(
+            "POST",
+            f"/api/runs/{quote(request.runId, safe='')}/case-validations",
+            timeout_ms=self.limits.readTimeoutMs,
+            json={
+                "casePackId": request.casePackId,
+                "casePackVersion": request.casePackVersion,
+                "mode": request.mode,
+                "replayCaseId": request.replayCaseId,
+                "input": request.input,
+            },
+        )
+        validation = self._validation_payload(payload)
+        deadline = asyncio.get_running_loop().time() + self.limits.caseExecutionTimeoutMs / 1000
+        while validation.get("status") in {"queued", "running"}:
+            if asyncio.get_running_loop().time() >= deadline:
+                break
+            await asyncio.sleep(0.1)
+            validation = (
+                await self.get_case_validation(
+                    CaseValidationMcpRequest(validationId=str(validation["id"]))
+                )
+            ).validation
+        return summarize_case_validation(validation)
+
+    async def get_latest_case_validation_context(
+        self, _request: CaseValidationMcpEmptyInput
+    ) -> CaseValidationMcpContext:
+        payload = await self._request_json(
+            "GET", "/api/runs?limit=20&status=victory", timeout_ms=self.limits.readTimeoutMs
+        )
+        candidates: list[CaseValidationMcpSummary] = []
+        for record in payload.get("runs", []):
+            if not isinstance(record, dict) or not isinstance(record.get("run"), dict):
+                continue
+            run_id = str(record["run"].get("id") or "")
+            if not run_id:
+                continue
+            validations = await self.list_case_validations(
+                CaseValidationMcpRunRequest(runId=run_id, limit=20)
+            )
+            candidates.extend(validations.validations)
+        if candidates:
+            latest = max(
+                candidates,
+                key=lambda item: (item.createdAt, item.validationId),
+            )
+            return CaseValidationMcpContext(
+                available=True,
+                message="Latest browser Evolution Run CaseValidation context.",
+                validation=latest,
+            )
+        return CaseValidationMcpContext(
+            available=False,
+            message="No CaseValidation is available. Run the browser Evolution and Verified Replay validation first.",
+            validation=None,
+        )
+
+    async def get_case_validation_demo_script(
+        self, _request: CaseValidationMcpEmptyInput
+    ) -> CaseValidationMcpDemoScript:
+        latest = await self.get_latest_case_validation_context(CaseValidationMcpEmptyInput())
+        if not latest.available or latest.validation is None:
+            return CaseValidationMcpDemoScript(
+                available=False,
+                message="No CaseValidation is available for a business-first demo script.",
+            )
+        summary = latest.validation
+        detail = await self.get_case_validation(
+            CaseValidationMcpRequest(validationId=summary.validationId)
+        )
+        validation = detail.validation
+        run_detail = await self.get_evolution_run(DemoMcpRunRequest(runId=summary.sourceRunId))
+        run = run_detail.record.get("run")
+        run = run if isinstance(run, dict) else {}
+        mutations = {
+            str(item.get("id")): item
+            for item in run_detail.mutationDetails
+            if isinstance(item, dict) and item.get("id")
+        }
+        evolutions = {
+            str(item.get("id")): item
+            for item in run_detail.evolutionDetails
+            if isinstance(item, dict) and item.get("id")
+        }
+        candidate = validation.get("candidate")
+        candidate = candidate if isinstance(candidate, dict) else {}
+        report = candidate.get("report")
+        report = report if isinstance(report, dict) else {}
+        narrative = report.get("narrative")
+        narrative = narrative if isinstance(narrative, dict) else {}
+        business_report = {
+            "company": report.get("company"),
+            "asOfDate": report.get("asOfDate"),
+            "summary": narrative.get("summary"),
+            "findings": list(narrative.get("findings") or []),
+            "risks": list(narrative.get("risks") or []),
+            "dataGaps": list(narrative.get("dataGaps") or []),
+            "conclusionBoundary": narrative.get("conclusionBoundary"),
+            "sourceCount": len(report.get("sources") or []),
+        }
+        formation: list[dict[str, Any]] = []
+        for item in run.get("nodeHistory", []):
+            if not isinstance(item, dict):
+                continue
+            reward = item.get("reward") if isinstance(item.get("reward"), dict) else {}
+            mutation_id = reward.get("selectedMutationId")
+            evolution_ids = [str(value) for value in reward.get("unlockedEvolutionIds", [])]
+            if not mutation_id and not evolution_ids and item.get("status") == "entered":
+                continue
+            formation.append(
+                {
+                    "sequence": item.get("sequence"),
+                    "nodeId": item.get("nodeId"),
+                    "status": item.get("status"),
+                    "regionName": item.get("regionName"),
+                    "testType": item.get("type"),
+                    "selectedMutationId": mutation_id,
+                    "selectedMutationName": (mutations.get(str(mutation_id)) or {}).get("name")
+                    if mutation_id
+                    else None,
+                    "unlockedEvolutions": [
+                        {
+                            "id": evolution_id,
+                            "name": (evolutions.get(evolution_id) or {}).get("name"),
+                        }
+                        for evolution_id in evolution_ids
+                    ],
+                    "legacyIncomplete": bool(item.get("legacyIncomplete", False)),
+                }
+            )
+        comparison = validation.get("comparison")
+        comparison = comparison if isinstance(comparison, dict) else {}
+        promotion = validation.get("promotion")
+        promotion = promotion if isinstance(promotion, dict) else {}
+        company = business_report.get("company")
+        company_name = company.get("name") if isinstance(company, dict) else "目标公司"
+        talk_track = [
+            f"先展示 {company_name} 的候选研究报告、主要发现、风险和结论边界。",
+            (
+                f"说明这是 Verified Replay：基础版本 {summary.baseSkillVersionId} 与候选预设 "
+                f"{summary.candidatePresetId} 共用锁定的来源、数据集、模型和预算。"
+            ),
+            (
+                f"对比基线 {comparison.get('baselineScore', '—')} 分与候选 "
+                f"{comparison.get('candidateScore', '—')} 分，严格提升 "
+                f"{comparison.get('scoreDelta', '—')} 分。"
+            ),
+            "按节点历史解释候选配置中已选择的优化项和解锁的能力组合。",
+            (
+                f"最后分别报告 runtimeVerified={bool(validation.get('runtimeVerified'))}、"
+                f"accepted={bool(validation.get('accepted'))}、"
+                f"promoted={bool(promotion.get('promoted'))}。"
+            ),
+        ]
+        return CaseValidationMcpDemoScript(
+            available=True,
+            message="Business-first CaseValidation demo script generated from persisted evidence.",
+            validationId=summary.validationId,
+            sourceRunId=summary.sourceRunId,
+            evidenceMode="verified_replay",
+            businessReport=business_report,
+            comparison=comparison,
+            candidateFormation=formation,
+            associatedRepairs=list(validation.get("contributionCoverage") or []),
+            promotion=promotion,
+            talkTrack=talk_track,
+            boundaries=[
+                "Verified Replay 使用持久化真实来源快照，不等同于现场 Live 请求。",
+                "节点优化项与门槛修复属于 associated_not_causal，不代表单项独立因果。",
+                "runtimeVerified、accepted 和 promoted 必须分别陈述。",
+            ],
+        )
 
     async def _request_json(
         self,

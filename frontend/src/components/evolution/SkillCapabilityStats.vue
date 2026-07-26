@@ -29,7 +29,7 @@ watch(() => props.controller.selectedSkillId, animateBars)
 
 <template>
   <div ref="root" class="skill-capability-stats" :class="`stats-${layout ?? 'grid'}`">
-    <label>CAPABILITY</label>
+    <label>能力画像 <small>CAPABILITY</small></label>
     <div v-for="(value, stat) in profile" :key="stat">
       <span>{{ controller.catalog.statLabels[stat] ?? stat }}</span>
       <i><b :data-value="`${value}%`" :style="animate === false ? { width: `${value}%` } : undefined"></b></i>

@@ -96,6 +96,7 @@ def build_release_readiness_case_pack(
         data_gateway=gateway,
         dataset_builder=ReleaseDatasetBuilder(),
         runtime=ReleaseReadinessRuntime(),
+        preset_runtime=None,
         evaluator=ReleaseReadinessEvaluator(),
         mutation_planner=ReleaseReadinessMutationPlanner(),
         artifact_builder=artifact_builder,

@@ -16,6 +16,7 @@
     "test:legacy": "node --test tests/backend/*.test.js tests/core/*.test.js tests/integration/*.test.js",
     "demo:awesome-finance": "PYTHONPATH=backend .venv/bin/python scripts/run_awesome_finance_self_evolution.py",
     "demo:awesome-finance-replay": "PYTHONPATH=backend .venv/bin/python scripts/run_awesome_finance_verified_replay.py",
+    "demo:awesome-finance-preset-validation": "PYTHONPATH=backend .venv/bin/python scripts/run_awesome_finance_preset_validation.py",
     "frontend:dev": "npm run dev --prefix frontend",
     "frontend:build": "npm run build --prefix frontend",
     "frontend:type-check": "npm run type-check --prefix frontend"

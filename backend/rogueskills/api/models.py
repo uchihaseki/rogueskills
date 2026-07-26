@@ -126,3 +126,12 @@ class ReplayCaseRunRequest(StrictModel):
     skillId: str = Field(min_length=1, max_length=160)
     skillVersionId: str | None = Field(default=None, min_length=3, max_length=200)
     autoEvolve: bool = False
+
+
+class CreateCaseValidationRequest(StrictModel):
+    casePackId: str = Field(min_length=1, max_length=160)
+    casePackVersion: str | None = Field(default=None, max_length=64)
+    mode: Literal["verified_replay"] = "verified_replay"
+    replayCaseId: str = Field(min_length=1, max_length=160)
+    input: dict[str, Any]
+    retryFailed: bool = False

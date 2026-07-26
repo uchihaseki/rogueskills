@@ -1,6 +1,8 @@
 import type {
   AgentPreset,
   AgentPresetExportTarget,
+  CaseValidation,
+  CaseValidationOption,
   DiscoveryCandidate,
   DiscoveryCandidatePreview,
   DiscoveryImportBatch,
@@ -228,6 +230,33 @@ export const listAgentPresets = () =>
 
 export const getAgentPreset = (presetId: string) =>
   request<{ preset: AgentPreset }>(`/api/agent-presets/${encodeURIComponent(presetId)}`)
+
+export const listCaseValidationOptions = (runId: string) =>
+  request<{ options: CaseValidationOption[] }>(
+    `/api/runs/${encodeURIComponent(runId)}/case-validation-options?casePackId=finance-stock-analysis`,
+  )
+
+export const listRunCaseValidations = (runId: string) =>
+  request<{ validations: CaseValidation[] }>(
+    `/api/runs/${encodeURIComponent(runId)}/case-validations`,
+  )
+
+export const createCaseValidation = (runId: string, payload: {
+  casePackId: string
+  casePackVersion: string
+  mode: 'verified_replay'
+  replayCaseId: string
+  input: Record<string, unknown>
+  retryFailed?: boolean
+}) => request<{ validation: CaseValidation; created: boolean }>(
+  `/api/runs/${encodeURIComponent(runId)}/case-validations`,
+  { method: 'POST', body: JSON.stringify(payload) },
+)
+
+export const getCaseValidation = (validationId: string) =>
+  request<{ validation: CaseValidation }>(
+    `/api/case-validations/${encodeURIComponent(validationId)}`,
+  )
 
 export async function downloadAgentPreset(
   presetId: string,

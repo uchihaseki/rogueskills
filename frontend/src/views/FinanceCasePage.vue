@@ -7,6 +7,7 @@ import {
   listFinanceCases,
   listInitialSkills,
 } from '@/api/client'
+import FinanceBusinessReport from '@/components/finance/FinanceBusinessReport.vue'
 import type {
   FinanceCasePreflight,
   FinanceCaseRun,
@@ -105,12 +106,12 @@ onMounted(initialize)
   <main class="finance-case-page">
     <header class="finance-case-nav">
       <RouterLink class="brand" to="/"><span class="brand-mark">R</span><span><strong>RogueSkills</strong><small>REAL FINANCE RUNTIME</small></span></RouterLink>
-      <nav><RouterLink to="/discovery">Skill Discovery</RouterLink><RouterLink to="/">Evolution Lab</RouterLink></nav>
+      <nav><RouterLink to="/discovery">技能发现 <small>DISCOVERY</small></RouterLink><RouterLink to="/">技能评估 <small>EVALUATION</small></RouterLink></nav>
     </header>
 
     <section class="finance-case-hero">
-      <div><p>RUNTIME VERIFIED · PUBLIC DATA ONLY</p><h1>让金融 Skill 真正分析一家公司</h1><span>SEC EDGAR 与市场价格实时抓取、不可变证据快照、事实级引用评测、Genome Mutation 和重跑对比。</span></div>
-      <aside :class="{ ready: preflight?.ready }"><i></i><div><small>ANALYST RUNTIME</small><strong>{{ preflight?.analyst.model || '未配置' }}</strong><span>{{ preflight?.ready ? 'LLM CONFIGURED · SOURCES CHECK ON RUN' : 'PREFLIGHT NOT READY' }}</span></div></aside>
+      <div><p>运行时验证 · 仅使用公开数据 <small>RUNTIME VERIFIED · PUBLIC DATA ONLY</small></p><h1>让金融 Skill 真正分析一家公司</h1><span>SEC EDGAR 与市场价格实时抓取、不可变证据快照、事实级引用评测、Genome 优化和重跑对比。</span></div>
+      <aside :class="{ ready: preflight?.ready }"><i></i><div><small>分析模型 · ANALYST RUNTIME</small><strong>{{ preflight?.analyst.model || '未配置' }}</strong><span>{{ preflight?.ready ? '模型已配置，数据源将在运行时检查' : '运行前检查未通过' }}</span></div></aside>
     </section>
 
     <section class="finance-case-flow">
@@ -125,40 +126,40 @@ onMounted(initialize)
       <div class="finance-field"><label>上市公司代码</label><input v-model="ticker" maxlength="12" spellcheck="false"></div>
       <div class="finance-field"><label>分析基准日</label><input v-model="asOfDate" type="date"></div>
       <div class="finance-field wide"><label>Initial Finance Skill</label><select v-model="selectedSkillId"><option disabled value="">请选择金融 Skill</option><option v-for="skill in financeSkills" :key="skill.id" :value="skill.id">{{ skill.name }} · {{ skill.currentVersionId }}</option></select></div>
-      <div class="finance-field"><label>数据模式</label><select v-model="mode"><option value="live">LIVE · 重新抓取</option><option value="verified_replay">VERIFIED REPLAY</option></select></div>
+      <div class="finance-field"><label>数据模式</label><select v-model="mode"><option value="live">在线数据 · LIVE</option><option value="verified_replay">已验证回放 · VERIFIED REPLAY</option></select></div>
       <div v-if="mode === 'verified_replay'" class="finance-field wide"><label>真实快照 Case</label><select v-model="replayCaseId"><option v-for="item in previousCases" :key="item.id" :value="item.id">{{ item.ticker }} · {{ item.asOfDate }} · {{ item.id }}</option></select></div>
       <button :disabled="running || !selectedSkillId || !preflight?.ready" @click="runCase"><span v-if="running" class="case-spinner"></span>{{ running ? '正在执行真实分析与进化…' : '运行真实金融 Case' }} <b>→</b></button>
     </section>
 
     <div v-if="!financeSkills.length && !error" class="finance-case-message warning">Initial Library 中没有 Finance Skill。请先在 Discovery 的“金融场景”完成初始化。</div>
-    <div v-if="error" class="finance-case-message error"><strong>CASE FAILED</strong><span>{{ error }}</span></div>
+    <div v-if="error" class="finance-case-message error"><strong>案例执行失败 <small>CASE FAILED</small></strong><span>{{ error }}</span></div>
     <div v-if="running" class="finance-case-running"><span></span><div><strong>执行中的请求没有模拟回退</strong><p>正在抓取 SEC 与市场数据、调用配置的 LLM、执行证据评测；若基线未通过，将应用 Genome Patch 并重跑。</p></div></div>
 
     <template v-if="result && report">
       <section class="case-result-heading"><div><p>{{ report.company.ticker }} · {{ report.asOfDate }}</p><h2>{{ report.company.name }}</h2><span>{{ result.mode === 'live' ? 'LIVE SOURCES' : 'VERIFIED REPLAY' }} · {{ result.id }}</span></div><div class="case-result-actions"><button @click="downloadReport(report)">下载报告 JSON</button><button v-if="result.agentPreset" class="secondary" @click="downloadPreset">下载 Runtime Preset</button></div></section>
 
       <section class="finance-case-scores">
-        <article><span>BASELINE</span><strong>{{ baselineScore ?? '—' }}</strong><small>{{ result.baseline?.evaluation.passed ? 'PASSED' : 'FAILED' }}</small></article>
-        <article><span>EVOLVED</span><strong>{{ evolvedScore ?? baselineScore ?? '—' }}</strong><small>{{ result.evolved ? (result.evolved.accepted ? 'ACCEPTED' : 'REJECTED') : 'NO MUTATION NEEDED' }}</small></article>
-        <article><span>SCORE DELTA</span><strong>{{ result.comparison ? `${result.comparison.scoreDelta > 0 ? '+' : ''}${result.comparison.scoreDelta}` : '—' }}</strong><small>EVIDENCE EVALUATOR</small></article>
-        <article :class="{ verified: result.runtimeVerified }"><span>RUNTIME</span><strong>{{ result.runtimeVerified ? 'TRUE' : 'FALSE' }}</strong><small>runtimeVerified</small></article>
+        <article><span>基础版本 <small>BASELINE</small></span><strong>{{ baselineScore ?? '—' }}</strong><small>{{ result.baseline?.evaluation.passed ? '通过 · PASSED' : '未通过 · FAILED' }}</small></article>
+        <article><span>优化后版本 <small>EVOLVED</small></span><strong>{{ evolvedScore ?? baselineScore ?? '—' }}</strong><small>{{ result.evolved ? (result.evolved.accepted ? '已验收 · ACCEPTED' : '未验收 · REJECTED') : '无需优化' }}</small></article>
+        <article><span>分数变化 <small>SCORE DELTA</small></span><strong>{{ result.comparison ? `${result.comparison.scoreDelta > 0 ? '+' : ''}${result.comparison.scoreDelta}` : '—' }}</strong><small>证据评估器 · EVIDENCE EVALUATOR</small></article>
+        <article :class="{ verified: result.runtimeVerified }"><span>运行时验证 <small>RUNTIME</small></span><strong>{{ result.runtimeVerified ? '通过' : '未通过' }}</strong><small>runtimeVerified</small></article>
       </section>
 
       <section class="finance-case-grid">
-        <article class="case-panel sources"><header><span>PROVENANCE</span><h3>不可变来源快照</h3></header><a v-for="source in report.sources" :key="source.id" :href="source.url" target="_blank" rel="noreferrer"><div><b>{{ source.provider }}</b><strong>{{ source.title }}</strong><small>{{ source.fetchedAt }} · {{ source.contentType }}</small></div><code>{{ source.sha256.slice(0, 24) }}…</code></a></article>
-        <article class="case-panel"><header><span>FINANCIAL FACTS</span><h3>可追溯核心指标</h3></header><div class="case-metric-list"><div v-for="fact in report.facts.filter((item) => item.metric.includes('annual_current') || item.metric === 'market_price_latest').slice(0, 10)" :key="fact.id"><span>{{ fact.label }}</span><strong>{{ formatValue(fact.value, fact.unit) }}</strong><small>{{ fact.periodEnd }} · {{ fact.form }} · {{ fact.factName }}</small></div><div v-for="metric in report.derivedMetrics" :key="metric.id" class="derived"><span>{{ metric.label }}</span><strong>{{ formatValue(metric.value, metric.unit) }}</strong><small>{{ metric.formula }}</small></div></div></article>
+        <article class="case-panel sources"><header><span>来源与证据链 <small>PROVENANCE</small></span><h3>不可变来源快照</h3></header><a v-for="source in report.sources" :key="source.id" :href="source.url" target="_blank" rel="noreferrer"><div><b>{{ source.provider }}</b><strong>{{ source.title }}</strong><small>{{ source.fetchedAt }} · {{ source.contentType }}</small></div><code>{{ source.sha256.slice(0, 24) }}…</code></a></article>
+        <article class="case-panel"><header><span>财务事实 <small>FINANCIAL FACTS</small></span><h3>可追溯核心指标</h3></header><div class="case-metric-list"><div v-for="fact in report.facts.filter((item) => item.metric.includes('annual_current') || item.metric === 'market_price_latest').slice(0, 10)" :key="fact.id"><span>{{ fact.label }}</span><strong>{{ formatValue(fact.value, fact.unit) }}</strong><small>{{ fact.periodEnd }} · {{ fact.form }} · {{ fact.factName }}</small></div><div v-for="metric in report.derivedMetrics" :key="metric.id" class="derived"><span>{{ metric.label }}</span><strong>{{ formatValue(metric.value, metric.unit) }}</strong><small>{{ metric.formula }}</small></div></div></article>
       </section>
 
-      <section class="case-panel valuation"><header><span>VALUATION SENSITIVITY</span><h3>双方法三情景</h3></header><div class="valuation-table"><div class="head"><span>Scenario</span><span>P/E</span><span>Implied Price</span><span>FCF Yield</span><span>Implied Price</span></div><div v-for="scenario in report.valuationScenarios" :key="scenario.name"><strong>{{ scenario.name }}</strong><span>{{ scenario.peMultiple }}×</span><span>{{ scenario.impliedPriceByPe ? `$${scenario.impliedPriceByPe}` : 'N/A' }}</span><span>{{ (scenario.fcfYield * 100).toFixed(1) }}%</span><span>{{ scenario.impliedPriceByFcf ? `$${scenario.impliedPriceByFcf}` : 'N/A' }}</span></div></div></section>
+      <section class="case-panel valuation"><header><span>估值敏感性 <small>VALUATION SENSITIVITY</small></span><h3>双方法三情景</h3></header><div class="valuation-table"><div class="head"><span>情景 <small>SCENARIO</small></span><span>市盈率</span><span>隐含价格</span><span>自由现金流收益率</span><span>隐含价格</span></div><div v-for="scenario in report.valuationScenarios" :key="scenario.name"><strong>{{ scenario.name }}</strong><span>{{ scenario.peMultiple }}×</span><span>{{ scenario.impliedPriceByPe ? `$${scenario.impliedPriceByPe}` : 'N/A' }}</span><span>{{ (scenario.fcfYield * 100).toFixed(1) }}%</span><span>{{ scenario.impliedPriceByFcf ? `$${scenario.impliedPriceByFcf}` : 'N/A' }}</span></div></div></section>
 
       <section class="finance-case-grid evaluation-grid">
-        <article class="case-panel"><header><span>BASELINE EVALUATION</span><h3>实际失败证据</h3></header><div class="eval-list"><div v-for="item in result.baseline?.evaluation.cases" :key="item.id" :class="{ passed: item.passed }"><b>{{ item.passed ? 'PASS' : 'FAIL' }}</b><span><strong>{{ item.label }}</strong><small>{{ item.details }}</small></span><em>{{ item.score }}</em></div></div></article>
-        <article class="case-panel"><header><span>FINAL EVALUATION</span><h3>进化后验收</h3></header><div class="eval-list"><div v-for="item in result.finalEvaluation?.cases" :key="item.id" :class="{ passed: item.passed }"><b>{{ item.passed ? 'PASS' : 'FAIL' }}</b><span><strong>{{ item.label }}</strong><small>{{ item.details }}</small></span><em>{{ item.score }}</em></div></div></article>
+        <article class="case-panel"><header><span>基础版本评估 <small>BASELINE EVALUATION</small></span><h3>实际失败证据</h3></header><div class="eval-list"><div v-for="item in result.baseline?.evaluation.cases" :key="item.id" :class="{ passed: item.passed }"><b>{{ item.passed ? '通过' : '未通过' }}</b><span><strong>{{ item.label }}</strong><small>{{ item.details }}</small></span><em>{{ item.score }}</em></div></div></article>
+        <article class="case-panel"><header><span>最终评估 <small>FINAL EVALUATION</small></span><h3>优化后验收</h3></header><div class="eval-list"><div v-for="item in result.finalEvaluation?.cases" :key="item.id" :class="{ passed: item.passed }"><b>{{ item.passed ? '通过' : '未通过' }}</b><span><strong>{{ item.label }}</strong><small>{{ item.details }}</small></span><em>{{ item.score }}</em></div></div></article>
       </section>
 
-      <section v-if="result.mutation" class="case-panel mutation-panel"><header><span>GENOME MUTATION</span><h3>{{ result.mutation.name }}</h3><p>{{ result.mutation.reason }}</p></header><div><code v-for="(operation, index) in result.mutation.genomePatch" :key="index"><b>{{ operation.op }}</b> {{ operation.path }} <span>{{ operation.value }}</span></code></div><footer><strong>{{ result.mutation.status }}</strong><span>{{ result.mutation.tradeoff }}</span><em>{{ result.baseSkillVersionId }} → {{ result.evolvedSkillVersionId || 'not accepted' }}</em></footer></section>
+      <section v-if="result.mutation" class="case-panel mutation-panel"><header><span>技能配置优化 <small>GENOME MUTATION</small></span><h3>{{ result.mutation.name }}</h3><p>{{ result.mutation.reason }}</p></header><div><code v-for="(operation, index) in result.mutation.genomePatch" :key="index"><b>{{ operation.op }}</b> {{ operation.path }} <span>{{ operation.value }}</span></code></div><footer><strong>{{ result.mutation.status === 'accepted' ? '已验收' : result.mutation.status === 'rejected' ? '未验收' : '测试中' }} <small>{{ result.mutation.status }}</small></strong><span>{{ result.mutation.tradeoff }}</span><em>{{ result.baseSkillVersionId }} → {{ result.evolvedSkillVersionId || '未验收' }}</em></footer></section>
 
-      <section class="case-panel narrative-panel"><header><span>RESEARCH OUTPUT</span><h3>证据约束的分析结论</h3></header><p class="case-summary">{{ report.narrative.summary }}</p><div class="finding-list"><article v-for="finding in report.narrative.findings" :key="finding.id"><b>{{ finding.kind }}</b><p>{{ finding.claim }}</p><small>{{ finding.evidenceIds.join(' · ') }}</small></article></div><div class="risk-list"><article v-for="risk in report.narrative.risks" :key="risk.id"><b>RISK</b><p>{{ risk.risk }}</p></article></div><footer>{{ report.narrative.conclusionBoundary }}</footer></section>
+      <FinanceBusinessReport :report="report" />
     </template>
   </main>
 </template>

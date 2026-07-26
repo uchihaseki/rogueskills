@@ -5,7 +5,14 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from rogueskills.api.app import create_app
+from rogueskills.domain.case_validation import canonical_digest
+from rogueskills.domain.finance_case import build_finance_dataset
 from rogueskills.settings import Settings
+
+from .test_case_validation_api import (
+    _victory_run_with_preset,
+    _wait_for_validation,
+)
 
 SKILL = """---
 name: alphaear-demo
@@ -99,6 +106,7 @@ def test_imports_local_awesome_finance_skills_through_admission_and_is_idempoten
             )
             == 1
         )
+        assert api.get("/api/case-runs?casePackId=finance-stock-analysis").json()["caseRuns"] == []
 
 
 def test_unknown_source_license_is_kept_out_of_initial_library(tmp_path: Path) -> None:
@@ -136,7 +144,8 @@ def test_default_demo_database_auto_seeds_awesome_finance_skills(tmp_path: Path)
     _write_source(tmp_path)
     database = tmp_path / "data" / "rogueskills.db"
     settings = Settings(database_url=f"sqlite:///{database}", project_root=tmp_path)
-    with TestClient(create_app(settings)) as api:
+    app = create_app(settings)
+    with TestClient(app) as api:
         initial = api.get("/api/library/initial")
         assert initial.status_code == 200
         imported = [
@@ -147,3 +156,71 @@ def test_default_demo_database_auto_seeds_awesome_finance_skills(tmp_path: Path)
         assert len(imported) == 1
         assert imported[0]["name"] == "alphaear-demo"
         assert imported[0]["status"] == "initial"
+
+        seeded_cases = api.get("/api/case-runs?casePackId=finance-stock-analysis").json()[
+            "caseRuns"
+        ]
+        assert len(seeded_cases) == 1
+        seeded = seeded_cases[0]
+        assert seeded["id"] == "case-run-demo-aapl-2026-07-21"
+        assert seeded["caseLabel"] == "Apple AAPL 公开财务分析"
+        assert seeded["demoIncluded"] is True
+        assert seeded["mode"] == "live"
+        assert seeded["status"] == "succeeded"
+
+        complete = app.state.case_run_repository.get(seeded["id"], include_bundle=True)
+        assert complete is not None
+        bundle = complete["_sourceBundle"]
+        assert bundle["company"]["ticker"] == "AAPL"
+        assert bundle["asOfDate"] == "2026-07-21"
+        assert len(bundle["sources"]) == 3
+        assert canonical_digest(bundle) == seeded["sourceBundleDigest"]
+        assert canonical_digest(build_finance_dataset(bundle)) == seeded["datasetDigest"]
+
+        run = _victory_run_with_preset(app, api, imported[0])
+        options = api.get(
+            f"/api/runs/{run['run']['id']}/case-validation-options"
+            "?casePackId=finance-stock-analysis"
+        )
+        assert options.status_code == 200
+        option = next(item for item in options.json()["options"] if item["caseId"] == seeded["id"])
+        assert option["mode"] == "verified_replay"
+        assert option["sourceMode"] == "live"
+        assert option["caseLabel"] == "Apple AAPL 公开财务分析"
+        assert option["demoIncluded"] is True
+        assert option["sourceProviders"] == ["SEC EDGAR", "Yahoo Finance"]
+        assert option["sourceBundleDigest"] == seeded["sourceBundleDigest"]
+        first_revision = complete["revision"]
+
+        created_validation = api.post(
+            f"/api/runs/{run['run']['id']}/case-validations",
+            json={
+                "casePackId": option["casePackId"],
+                "casePackVersion": option["casePackVersion"],
+                "mode": "verified_replay",
+                "replayCaseId": option["caseId"],
+                "input": option["input"],
+            },
+        )
+        assert created_validation.status_code == 202
+        validation = _wait_for_validation(api, created_validation.json()["validation"]["id"])
+        assert validation["status"] == "succeeded"
+        assert validation["mode"] == "verified_replay"
+        assert validation["replayCaseId"] == seeded["id"]
+        assert validation["sourceBundleDigest"] == seeded["sourceBundleDigest"]
+        assert validation["datasetDigest"] == seeded["datasetDigest"]
+        assert validation["executionPolicy"]["analyst"] == {
+            "mode": "deterministic-replay",
+            "provider": "RogueSkills demo fixture",
+            "model": "finance-demo-evidence-analyst",
+            "configured": True,
+        }
+        assert validation["baseline"]["evaluation"]["score"] == 88.0
+        assert validation["candidate"]["evaluation"]["score"] == 100.0
+        assert validation["runtimeVerified"] is True
+
+    restarted_app = create_app(settings)
+    with TestClient(restarted_app):
+        repeated = restarted_app.state.demo_finance_replay_seed
+        assert repeated["action"] == "reused"
+        assert repeated["caseRun"]["revision"] == first_revision

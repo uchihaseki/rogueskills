@@ -104,4 +104,8 @@ class DemoMcpContext(DemoMcpContract):
     skill: dict[str, Any] | None = None
     run: dict[str, Any] | None = None
     artifact: dict[str, Any] | None = None
+    caseValidation: dict[str, Any] | None = None
+    promotion: dict[str, Any] | None = None
+    nodeHistorySummary: dict[str, Any] = Field(default_factory=dict)
+    demoScript: dict[str, Any] = Field(default_factory=dict)
     catalog: dict[str, Any] = Field(default_factory=dict)

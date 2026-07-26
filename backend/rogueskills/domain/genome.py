@@ -134,6 +134,44 @@ def validate_skill_genome(genome: object) -> dict[str, Any]:
         if not isinstance(risk.get("executableContent"), bool):
             error("risk.executableContent", "必须是布尔值")
 
+    runtime_binding = genome.get("runtimeBinding")
+    if runtime_binding is not None:
+        if not isinstance(runtime_binding, dict):
+            error("runtimeBinding", "必须是对象")
+        else:
+            if runtime_binding.get("contractVersion") != "1.0.0":
+                error("runtimeBinding.contractVersion", "必须为 1.0.0")
+            if runtime_binding.get("kind") != "agent-preset":
+                error("runtimeBinding.kind", "必须为 agent-preset")
+            for key in ("presetId", "presetDigest", "validationId"):
+                if not str(runtime_binding.get(key, "")).strip():
+                    error(f"runtimeBinding.{key}", "不能为空")
+            if not re.fullmatch(
+                r"sha256:[a-f0-9]{64}", str(runtime_binding.get("presetDigest", ""))
+            ):
+                error("runtimeBinding.presetDigest", "必须是有效的 SHA-256 digest")
+
+    runtime_verification = genome.get("runtimeVerification")
+    if runtime_verification is not None:
+        if not isinstance(runtime_verification, dict):
+            error("runtimeVerification", "必须是对象")
+        else:
+            if runtime_verification.get("runtimeVerified") is not True:
+                error("runtimeVerification.runtimeVerified", "必须为 true")
+            for key in (
+                "casePackId",
+                "casePackVersion",
+                "caseId",
+                "evaluationId",
+                "verifiedAt",
+            ):
+                if not str(runtime_verification.get(key, "")).strip():
+                    error(f"runtimeVerification.{key}", "不能为空")
+            for key in ("sourceDigest", "datasetDigest"):
+                value = runtime_verification.get(key)
+                if value is not None and not re.fullmatch(r"sha256:[a-f0-9]{64}", str(value)):
+                    error(f"runtimeVerification.{key}", "必须是有效的 SHA-256 digest")
+
     if isinstance(metadata, dict) and metadata.get("license") in ("unknown", "NOASSERTION"):
         warnings.append(
             {"path": "metadata.license", "message": "许可证未知，不能进入 Initial Skill Library"}

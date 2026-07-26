@@ -187,6 +187,7 @@ def generic_pack(gateway: GenericGateway, runtime: GenericRuntime) -> CasePack:
         data_gateway=gateway,
         dataset_builder=GenericBuilder(),
         runtime=runtime,
+        preset_runtime=None,
         evaluator=GenericEvaluator(),
         mutation_planner=GenericPlanner(),
         artifact_builder=GenericArtifacts(),

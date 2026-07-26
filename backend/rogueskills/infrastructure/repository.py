@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from rogueskills.application.errors import ApplicationError
+from rogueskills.domain.evolution import normalize_run_state
 from rogueskills.domain.genome import assert_skill_genome, validate_skill_genome
 
 from .database import BenchmarkRunRow, EvolutionRunRow, SkillRow, SkillVersionRow, SourceSnapshotRow
@@ -390,6 +391,70 @@ class SkillRepository:
             )
         return saved
 
+    def save_verified_preset_binding(
+        self,
+        *,
+        skill_id: str,
+        expected_version_id: str,
+        preset_id: str,
+        preset_digest: str,
+        validation_id: str,
+        runtime_evidence: dict[str, Any],
+    ) -> dict[str, Any]:
+        current = self.get_skill(skill_id)
+        if not current:
+            raise ApplicationError("SKILL_NOT_FOUND", "Skill 不存在。", status_code=404)
+        if current["currentVersionId"] != expected_version_id:
+            raise ApplicationError(
+                "STALE_SKILL_VERSION",
+                "Skill 当前版本已经改变，不能晋升本次 AgentPreset Validation。",
+                status_code=409,
+                details={"currentVersionId": current["currentVersionId"]},
+            )
+        version = self.get_skill_version(expected_version_id)
+        if not version or version["skillId"] != skill_id:
+            raise ApplicationError(
+                "SKILL_VERSION_NOT_FOUND",
+                "Validation 固定的 Base Skill Version 不存在。",
+                status_code=404,
+            )
+        if current["status"] != "initial":
+            raise ApplicationError(
+                "SKILL_NOT_INITIAL",
+                "只有 Initial Skill 可以绑定 Runtime Verified AgentPreset。",
+                status_code=409,
+            )
+        evolved = deepcopy(version["genome"])
+        evolved["status"] = "initial"
+        evolved["runtimeBinding"] = {
+            "contractVersion": "1.0.0",
+            "kind": "agent-preset",
+            "presetId": preset_id,
+            "presetDigest": preset_digest,
+            "validationId": validation_id,
+        }
+        evolved["runtimeVerification"] = deepcopy(runtime_evidence)
+        validation = validate_skill_genome(evolved)
+        if not validation["valid"]:
+            raise ApplicationError(
+                "INVALID_VERIFIED_SKILL_GENOME",
+                "绑定 AgentPreset 后的 Skill Genome 未通过 Schema 验证。",
+                status_code=422,
+                details=validation,
+            )
+        saved = self.save_skill(
+            evolved,
+            source_id=current["sourceId"] or "case-validation",
+            trusted_status=True,
+        )
+        if saved["currentVersionId"] == expected_version_id:
+            raise ApplicationError(
+                "VERIFIED_SKILL_UNCHANGED",
+                "Runtime Binding 没有产生新的 Skill Version。",
+                status_code=409,
+            )
+        return saved
+
     def save_run(
         self,
         state: dict[str, Any],
@@ -438,7 +503,7 @@ class SkillRepository:
             row = session.get(EvolutionRunRow, run_id)
             return (
                 {
-                    "run": _parse(row.state_json, {}),
+                    "run": normalize_run_state(_parse(row.state_json, {})),
                     "revision": row.revision,
                     "baseSkillVersionId": row.base_skill_version_id,
                 }
@@ -462,7 +527,7 @@ class SkillRepository:
             rows = session.scalars(query.limit(bounded_limit)).all()
             return [
                 {
-                    "run": _parse(row.state_json, {}),
+                    "run": normalize_run_state(_parse(row.state_json, {})),
                     "revision": row.revision,
                     "baseSkillVersionId": row.base_skill_version_id,
                 }

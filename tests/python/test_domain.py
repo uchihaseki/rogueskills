@@ -14,13 +14,17 @@ from rogueskills.domain.discovery import (
     search_local_index,
 )
 from rogueskills.domain.evolution import (
+    advance_automatic_run,
     calculate_objective_score,
     choose_mutation,
     create_run,
     generate_map,
     get_current_layer,
+    normalize_run_state,
     resolve_current_node,
     select_node,
+    skip_mutation,
+    start_automatic_run,
 )
 from rogueskills.domain.finance import deep_filter_finance_candidate, select_finance_candidates
 from rogueskills.domain.genome import validate_skill_genome
@@ -155,6 +159,146 @@ class DomainParityTests(unittest.TestCase):
             boss = get_current_layer(run)[0]
             run = resolve_current_node(select_node(run, boss["id"]))
         self.assertEqual("victory", run["status"])
+
+    def test_node_history_preserves_encounter_reward_and_build_delta(self) -> None:
+        run = create_run(seed="NODE-HISTORY-001")
+        node = get_current_layer(run)[0]
+        selected = select_node(run, node["id"])
+
+        self.assertEqual(3, selected["saveVersion"])
+        self.assertEqual(node["id"], selected["nodeHistory"][0]["nodeId"])
+        self.assertEqual("entered", selected["nodeHistory"][0]["status"])
+        self.assertEqual(run["stats"], selected["nodeHistory"][0]["before"]["stats"])
+
+        rewarded = resolve_current_node(selected)
+        record = rewarded["nodeHistory"][0]
+        self.assertEqual(node["id"], record["result"]["nodeId"])
+        self.assertEqual(rewarded["currentDraft"], record["reward"]["mutationDraftIds"])
+        self.assertTrue(record["logIds"])
+
+        completed = skip_mutation(rewarded)
+        record = completed["nodeHistory"][0]
+        self.assertEqual("completed", record["status"])
+        self.assertTrue(record["reward"]["skipped"])
+        self.assertIsNotNone(record["after"])
+        self.assertEqual(completed["stats"], record["after"]["stats"])
+
+    def test_node_history_preserves_rest_and_lab_results(self) -> None:
+        run = create_run(seed="NODE-HISTORY-UTILITY")
+        utility_layer_index = next(
+            index
+            for index, layer in enumerate(run["map"][0]["layers"])
+            if any(node["type"] in {"rest", "lab"} for node in layer)
+        )
+        utility = next(
+            node
+            for node in run["map"][0]["layers"][utility_layer_index]
+            if node["type"] in {"rest", "lab"}
+        )
+        run.update({"layerIndex": utility_layer_index, "phase": "choose_node"})
+        resolved = resolve_current_node(select_node(run, utility["id"]))
+        record = resolved["nodeHistory"][0]
+
+        self.assertEqual(utility["type"], record["result"]["kind"])
+        if utility["type"] == "rest":
+            self.assertEqual("completed", record["status"])
+            self.assertEqual(10, record["result"]["computeReward"])
+        else:
+            self.assertEqual(resolved["currentDraft"], record["reward"]["mutationDraftIds"])
+            finalized = skip_mutation(resolved)
+            self.assertEqual("completed", finalized["nodeHistory"][0]["status"])
+
+    def test_legacy_run_normalization_marks_incomplete_node_evidence(self) -> None:
+        run = create_run(seed="NODE-HISTORY-LEGACY")
+        node = get_current_layer(run)[0]
+        resolved = resolve_current_node(select_node(run, node["id"]))
+        legacy = deepcopy(resolved)
+        legacy["saveVersion"] = 2
+        legacy.pop("nodeHistory", None)
+        legacy.pop("nodeHistoryIncomplete", None)
+
+        normalized = normalize_run_state(legacy)
+
+        self.assertEqual(3, normalized["saveVersion"])
+        self.assertTrue(normalized["nodeHistoryIncomplete"])
+        self.assertTrue(normalized["nodeHistory"][0]["legacyIncomplete"])
+        self.assertIsNone(normalized["nodeHistory"][0]["before"])
+
+    def test_fixed_seed_produces_identical_node_history(self) -> None:
+        histories = []
+        for _ in range(2):
+            run = create_run(seed="NODE-HISTORY-DETERMINISTIC")
+            node = get_current_layer(run)[0]
+            completed = skip_mutation(resolve_current_node(select_node(run, node["id"])))
+            histories.append(completed["nodeHistory"])
+
+        self.assertEqual(histories[0], histories[1])
+
+    def test_automatic_and_manual_runs_share_node_record_contract(self) -> None:
+        manual = create_run(seed="NODE-HISTORY-SHARED-CONTRACT")
+        manual = select_node(manual, get_current_layer(manual)[0]["id"])
+        automatic = start_automatic_run(
+            create_run(seed="NODE-HISTORY-SHARED-CONTRACT"),
+            selected_monster_ids=[],
+            project={"name": "Shared Contract", "description": "Test", "scenario": "test"},
+        )
+        automatic = advance_automatic_run(automatic)
+
+        self.assertEqual(set(manual["nodeHistory"][0]), set(automatic["nodeHistory"][0]))
+        self.assertEqual(
+            set(manual["nodeHistory"][0]["before"]),
+            set(automatic["nodeHistory"][0]["before"]),
+        )
+        self.assertEqual(
+            set(manual["nodeHistory"][0]["reward"]),
+            set(automatic["nodeHistory"][0]["reward"]),
+        )
+
+    def test_failed_boss_is_persisted_as_failed_node_record(self) -> None:
+        run = create_run(seed="NODE-HISTORY-FAILED-BOSS")
+        run.update(
+            {
+                "layerIndex": 3,
+                "phase": "choose_node",
+                "stats": {key: 0 for key in run["stats"]},
+                "compute": 0,
+            }
+        )
+        boss = get_current_layer(run)[0]
+        failed = resolve_current_node(select_node(run, boss["id"]))
+
+        self.assertEqual("defeat", failed["status"])
+        self.assertEqual("failed", failed["nodeHistory"][0]["status"])
+        self.assertFalse(failed["nodeHistory"][0]["result"]["passed"])
+        self.assertIsNotNone(failed["nodeHistory"][0]["after"])
+
+    def test_legacy_rest_or_lab_node_is_rebuilt_without_invented_result(self) -> None:
+        run = create_run(seed="NODE-HISTORY-LEGACY-UTILITY")
+        utility = next(
+            node
+            for region in run["map"]
+            for layer in region["layers"]
+            for node in layer
+            if node["type"] in {"rest", "lab"}
+        )
+        legacy = deepcopy(run)
+        legacy.update(
+            {
+                "saveVersion": 2,
+                "completedNodeIds": [utility["id"]],
+                "encounterHistory": [],
+            }
+        )
+        legacy.pop("nodeHistory", None)
+        legacy.pop("nodeHistoryIncomplete", None)
+
+        normalized = normalize_run_state(legacy)
+        record = normalized["nodeHistory"][0]
+        self.assertEqual(utility["id"], record["nodeId"])
+        self.assertEqual(utility["type"], record["type"])
+        self.assertEqual("completed", record["status"])
+        self.assertTrue(record["legacyIncomplete"])
+        self.assertIsNone(record["result"])
 
     def test_victory_run_compiles_into_loadable_agent_preset(self) -> None:
         genome = SEED_SKILLS[0]

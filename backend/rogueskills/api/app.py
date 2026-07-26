@@ -30,10 +30,13 @@ from rogueskills.adapters.github_release_data import GithubReleaseReadinessGatew
 from rogueskills.adapters.llm_finance_analyst import OpenAICompatibleFinanceAnalyst
 from rogueskills.adapters.llm_material_normalizer import OpenAICompatibleMaterialNormalizer
 from rogueskills.agents.finance_analyst import FinanceAnalyst, UnavailableFinanceAnalyst
+from rogueskills.agents.finance_demo_analyst import DemoFinanceAnalyst
 from rogueskills.agents.material_normalizer import MaterialNormalizer, UnavailableMaterialNormalizer
 from rogueskills.application.awesome_finance_import import AwesomeFinanceSkillsService
 from rogueskills.application.case_artifact_builder import DigestRuntimeArtifactBuilder
 from rogueskills.application.case_run_service import CaseRunService
+from rogueskills.application.case_validation_service import CaseValidationService
+from rogueskills.application.demo_finance_replay import DemoFinanceReplayService
 from rogueskills.application.discovery_service import DiscoverySearchService
 from rogueskills.application.errors import ApplicationError
 from rogueskills.application.finance_artifact_builder import FinanceRuntimeArtifactBuilder
@@ -50,6 +53,7 @@ from rogueskills.domain.evolution import public_catalog
 from rogueskills.domain.genome import capability_profile_from_genome, validate_skill_genome
 from rogueskills.infrastructure.case_run_repository import CaseRunRepository
 from rogueskills.infrastructure.case_store import CompatibleCaseRunStore
+from rogueskills.infrastructure.case_validation_repository import CaseValidationRepository
 from rogueskills.infrastructure.database import create_database
 from rogueskills.infrastructure.finance_case_repository import FinanceCaseRepository
 from rogueskills.infrastructure.preset_repository import AgentPresetRepository
@@ -61,6 +65,7 @@ from .models import (
     ChooseMutationRequest,
     CreateAgentPresetRequest,
     CreateCaseRunRequest,
+    CreateCaseValidationRequest,
     CreateFinanceCaseRequest,
     CreateRunRequest,
     DiscoveryImportBatchRequest,
@@ -88,16 +93,22 @@ def create_app(
     release_data_gateway: GithubReleaseReadinessGateway | None = None,
 ) -> FastAPI:
     config = config or Settings()
+    finance_analyst_injected = finance_analyst is not None
     engine, sessions = create_database(config.database_url)
     repository = SkillRepository(sessions)
     preset_repository = AgentPresetRepository(sessions)
     finance_case_repository = FinanceCaseRepository(sessions)
     case_run_repository = CaseRunRepository(sessions)
+    case_validation_repository = CaseValidationRepository(sessions)
     case_store = CompatibleCaseRunStore(case_run_repository, finance_case_repository)
     skills = SkillService(repository)
     runs = RunService(repository)
     presets = AgentPresetService(repository, preset_repository)
     awesome_finance = AwesomeFinanceSkillsService(repository)
+    demo_finance_replay = DemoFinanceReplayService(
+        skills=repository,
+        cases=case_run_repository,
+    )
     owns_client = http_client is None
     client = http_client or httpx.AsyncClient(
         timeout=httpx.Timeout(config.search_provider_timeout_seconds),
@@ -157,6 +168,7 @@ def create_app(
         build_finance_case_pack(
             gateway=resolved_finance_data_gateway,
             analyst=finance_analyst,
+            demo_analyst=None if finance_analyst_injected else DemoFinanceAnalyst(),
             artifact_builder=finance_artifact_builder,
         )
     )
@@ -167,7 +179,17 @@ def create_app(
             artifact_builder=DigestRuntimeArtifactBuilder(),
         )
     )
-    case_runner = CaseRunService(skills=repository, cases=case_store)
+    case_runner = CaseRunService(
+        skills=repository,
+        cases=case_store,
+        presets=preset_repository,
+    )
+    case_validations = CaseValidationService(
+        skills=repository,
+        presets=preset_repository,
+        cases=case_store,
+        validations=case_validation_repository,
+    )
     finance_cases = FinanceCaseService(
         analyst=finance_analyst,
         skills=repository,
@@ -176,6 +198,7 @@ def create_app(
     )
     search_cache: dict[str, tuple[float, dict[str, Any]]] = {}
     automatic_run_tasks: dict[str, asyncio.Task[None]] = {}
+    case_validation_tasks: dict[str, asyncio.Task[None]] = {}
 
     for seed in SEED_SKILLS:
         if not repository.get_skill(seed["id"]):
@@ -188,8 +211,11 @@ def create_app(
     default_database_url = (
         f"sqlite:///{(config.project_root / 'data' / 'rogueskills.db').resolve()}"
     )
-    if awesome_root.is_dir() and config.database_url == default_database_url:
-        awesome_finance.run(root=awesome_root, auto_promote=True)
+    demo_replay_seed: dict[str, Any] | None = None
+    if config.database_url == default_database_url:
+        if awesome_root.is_dir():
+            awesome_finance.run(root=awesome_root, auto_promote=True)
+        demo_replay_seed = demo_finance_replay.seed()
 
     def resolve_case_skill(
         *, skill_id: str, skill_version_id: str | None, auto_evolve: bool
@@ -226,7 +252,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
-        tasks = list(automatic_run_tasks.values())
+        tasks = [*automatic_run_tasks.values(), *case_validation_tasks.values()]
         for task in tasks:
             task.cancel()
         if tasks:
@@ -255,6 +281,9 @@ def create_app(
     app.state.preset_repository = preset_repository
     app.state.finance_case_repository = finance_case_repository
     app.state.case_run_repository = case_run_repository
+    app.state.case_validation_repository = case_validation_repository
+    app.state.case_validation_service = case_validations
+    app.state.demo_finance_replay_seed = demo_replay_seed
     app.state.case_store = case_store
     app.state.case_pack_registry = case_pack_registry
 
@@ -803,6 +832,80 @@ def create_app(
             "artifact": preset_repository.get_by_run_id(run_id),
         }
 
+    async def drive_case_validation(validation_id: str, pack: Any) -> None:
+        try:
+            await case_validations.execute(validation_id, pack=pack)
+        except ApplicationError:
+            return
+
+    def ensure_case_validation_task(validation_id: str, pack: Any) -> None:
+        current = case_validation_tasks.get(validation_id)
+        if current and not current.done():
+            return
+        task = asyncio.create_task(drive_case_validation(validation_id, pack))
+        case_validation_tasks[validation_id] = task
+
+        def forget_case_validation(finished: asyncio.Task[None]) -> None:
+            if case_validation_tasks.get(validation_id) is finished:
+                case_validation_tasks.pop(validation_id, None)
+
+        task.add_done_callback(forget_case_validation)
+
+    @app.get("/api/runs/{run_id}/case-validation-options")
+    def get_case_validation_options(
+        run_id: str,
+        casePackId: str = "finance-stock-analysis",
+        casePackVersion: str | None = None,
+        limit: int = Query(default=30, ge=1, le=100),
+    ) -> dict[str, Any]:
+        try:
+            pack = case_pack_registry.get(casePackId, casePackVersion)
+        except ValueError as error:
+            raise ApplicationError(
+                "CASE_PACK_NOT_FOUND", "Case Pack 不存在。", status_code=404
+            ) from error
+        return {"options": case_validations.options(run_id=run_id, pack=pack, limit=limit)}
+
+    @app.get("/api/runs/{run_id}/case-validations")
+    def list_run_case_validations(
+        run_id: str, limit: int = Query(default=20, ge=1, le=100)
+    ) -> dict[str, Any]:
+        return {"validations": case_validations.list_for_run(run_id, limit=limit)}
+
+    @app.post("/api/runs/{run_id}/case-validations", status_code=202)
+    async def create_run_case_validation(
+        run_id: str, payload: CreateCaseValidationRequest
+    ) -> dict[str, Any]:
+        try:
+            pack = case_pack_registry.get(payload.casePackId, payload.casePackVersion)
+        except ValueError as error:
+            raise ApplicationError(
+                "CASE_PACK_NOT_FOUND", "Case Pack 不存在。", status_code=404
+            ) from error
+        state, created = case_validations.create(
+            run_id=run_id,
+            pack=pack,
+            replay_case_id=payload.replayCaseId,
+            case_input=payload.input,
+            retry_failed=payload.retryFailed,
+        )
+        if state["status"] in {"queued", "running"}:
+            ensure_case_validation_task(state["id"], pack)
+        return {"validation": state, "created": created}
+
+    @app.get("/api/case-validations/{validation_id}")
+    def get_case_validation(validation_id: str) -> dict[str, Any]:
+        state = case_validations.get(validation_id)
+        if state["status"] in {"queued", "running"}:
+            try:
+                pack = case_pack_registry.get(state["casePackId"], state["casePackVersion"])
+            except ValueError as error:
+                raise ApplicationError(
+                    "CASE_PACK_NOT_FOUND", "Case Pack 不存在。", status_code=404
+                ) from error
+            ensure_case_validation_task(validation_id, pack)
+        return {"validation": state}
+
     @app.get("/api/demo/context")
     def get_demo_context() -> dict[str, Any]:
         """Expose the latest local Evolution demo as a read-only host context.
@@ -813,7 +916,7 @@ def create_app(
         milestones, and generated AgentPreset.
         """
 
-        records = repository.list_runs(limit=1)
+        records = repository.list_runs(limit=20)
         if not records:
             return {
                 "available": False,
@@ -821,9 +924,31 @@ def create_app(
                 "skill": None,
                 "run": None,
                 "artifact": None,
+                "caseValidation": None,
+                "promotion": None,
+                "nodeHistorySummary": {},
+                "demoScript": {},
                 "catalog": {},
             }
-        record = records[0]
+        validation_candidates: list[dict[str, Any]] = []
+        records_by_run_id = {
+            str(item.get("run", {}).get("id")): item
+            for item in records
+            if isinstance(item.get("run"), dict) and item["run"].get("id")
+        }
+        for run_id in records_by_run_id:
+            validation_candidates.extend(case_validations.list_for_run(run_id, limit=20))
+        validation = (
+            max(
+                validation_candidates,
+                key=lambda item: (str(item.get("createdAt") or ""), str(item.get("id") or "")),
+            )
+            if validation_candidates
+            else None
+        )
+        record = (
+            records_by_run_id.get(str(validation.get("sourceRunId"))) if validation else None
+        ) or records[0]
         run = record["run"]
         artifact = preset_repository.get_by_run_id(run["id"])
         catalog = public_catalog()
@@ -835,6 +960,43 @@ def create_app(
             if isinstance(item, dict) and item.get("monsterId")
         }
         context_run = {key: value for key, value in run.items() if key != "baseSkillGenome"}
+        node_history = [item for item in run.get("nodeHistory", []) if isinstance(item, dict)]
+        node_history_summary = {
+            "saveVersion": run.get("saveVersion"),
+            "total": len(node_history),
+            "completed": sum(item.get("status") == "completed" for item in node_history),
+            "failed": sum(item.get("status") == "failed" for item in node_history),
+            "entered": sum(item.get("status") == "entered" for item in node_history),
+            "legacyIncomplete": sum(bool(item.get("legacyIncomplete")) for item in node_history),
+            "nodes": [
+                {
+                    "nodeId": item.get("nodeId"),
+                    "sequence": item.get("sequence"),
+                    "status": item.get("status"),
+                    "type": item.get("type"),
+                    "regionName": item.get("regionName"),
+                    "selectedMutationId": (item.get("reward") or {}).get("selectedMutationId"),
+                    "unlockedEvolutionIds": list(
+                        (item.get("reward") or {}).get("unlockedEvolutionIds") or []
+                    ),
+                }
+                for item in node_history
+            ],
+        }
+        demo_script = {
+            "title": "Awesome Finance Candidate 真实案例验证",
+            "presentationOrder": [
+                "先展示候选配置生成的公司研究报告与证据边界",
+                "再对比基础技能版本与候选智能体预设的分数和硬门槛",
+                "然后用节点历史解释候选配置如何形成",
+                "最后说明运行时验证、验收和技能版本晋升是三个独立状态",
+            ],
+            "recommendedPrompt": (
+                "生成最新 CaseValidation 的业务优先演示讲稿：先讲公司研究结论，"
+                "再讲同源 A/B、节点历史、关联修复和晋升结果。"
+            ),
+            "attributionBoundary": "节点优化项与门槛修复是关联证据，不代表单项独立因果。",
+        }
         return {
             "available": True,
             "message": "最新本地 Evolution Run 上下文。",
@@ -844,6 +1006,10 @@ def create_app(
                 "run": context_run,
             },
             "artifact": artifact,
+            "caseValidation": validation,
+            "promotion": (validation or {}).get("promotion") if validation else None,
+            "nodeHistorySummary": node_history_summary,
+            "demoScript": demo_script,
             "catalog": {
                 "mutations": [item for item in catalog["mutations"] if item["id"] in mutation_ids],
                 "evolutions": [

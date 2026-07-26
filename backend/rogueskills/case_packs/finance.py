@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+from rogueskills.adapters.agent_preset_loader import load_agent_preset
 from rogueskills.adapters.finance_data import SecFinanceDataGateway
 from rogueskills.agents.case_runtime import RuntimeArtifactBuilder
 from rogueskills.agents.finance_analyst import FinanceAnalyst
@@ -46,19 +47,31 @@ class FinanceCaseDataGateway:
                 "重放快照的 ticker 与请求不一致。",
                 status_code=409,
             )
+        expected_date = str(case_input["asOfDate"])
+        actual_date = str(source_bundle.get("asOfDate") or "")
+        if actual_date != expected_date:
+            raise ApplicationError(
+                "REPLAY_AS_OF_DATE_MISMATCH",
+                "重放快照的分析基准日与请求不一致。",
+                status_code=409,
+            )
 
 
 class FinanceDatasetBuilder:
-    def build(
-        self, source_bundle: dict[str, Any], case_input: dict[str, Any]
-    ) -> dict[str, Any]:
+    def build(self, source_bundle: dict[str, Any], case_input: dict[str, Any]) -> dict[str, Any]:
         del case_input
         return build_finance_dataset(source_bundle)
 
 
 class FinanceCaseRuntime:
-    def __init__(self, analyst: FinanceAnalyst) -> None:
+    def __init__(self, analyst: FinanceAnalyst, demo_analyst: FinanceAnalyst | None = None) -> None:
         self.analyst = analyst
+        self.demo_analyst = demo_analyst
+
+    def _analyst_for(self, case_input: dict[str, Any]) -> FinanceAnalyst:
+        if case_input.get("demoIncluded") and self.demo_analyst is not None:
+            return self.demo_analyst
+        return self.analyst
 
     async def execute(
         self,
@@ -67,13 +80,14 @@ class FinanceCaseRuntime:
         dataset: dict[str, Any],
         feedback: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        narrative = await self.analyst.analyze(
+        analyst = self._analyst_for(case_input)
+        narrative = await analyst.analyze(
             genome=genome,
             case=case_input,
             dataset=dataset,
             feedback=feedback,
         )
-        return build_finance_report(
+        report = build_finance_report(
             case_id=str(case_input["caseId"]),
             stage=str(case_input["stage"]),
             skill_id=str(case_input["skillId"]),
@@ -81,6 +95,49 @@ class FinanceCaseRuntime:
             dataset=dataset,
             narrative=narrative,
         )
+        report["executionKind"] = str(case_input.get("executionKind") or "skill_version")
+        return report
+
+
+class FinancePresetCaseRuntime:
+    def __init__(self, analyst: FinanceAnalyst, demo_analyst: FinanceAnalyst | None = None) -> None:
+        self.analyst = analyst
+        self.demo_analyst = demo_analyst
+
+    def _analyst_for(self, case_input: dict[str, Any]) -> FinanceAnalyst:
+        if case_input.get("demoIncluded") and self.demo_analyst is not None:
+            return self.demo_analyst
+        return self.analyst
+
+    async def execute_preset(
+        self,
+        preset: dict[str, Any],
+        case_input: dict[str, Any],
+        dataset: dict[str, Any],
+        execution_policy: dict[str, Any],
+    ) -> dict[str, Any]:
+        runtime_config = load_agent_preset(preset)
+        runtime_config["executionPolicy"] = execution_policy
+        analyst = self._analyst_for(case_input)
+        narrative = await analyst.analyze(
+            genome=preset["primarySkill"]["genome"],
+            case=case_input,
+            dataset=dataset,
+            feedback=None,
+            agent_config=runtime_config,
+        )
+        report = build_finance_report(
+            case_id=str(case_input["caseId"]),
+            stage=str(case_input["stage"]),
+            skill_id=str(case_input["skillId"]),
+            skill_version_id=str(case_input["skillVersionId"]),
+            dataset=dataset,
+            narrative=narrative,
+        )
+        report["executionKind"] = "agent_preset"
+        report["candidatePresetId"] = preset["id"]
+        report["candidatePresetDigest"] = preset["digest"]
+        return report
 
 
 class FinanceCaseEvaluator:
@@ -118,6 +175,7 @@ def build_finance_case_pack(
     *,
     gateway: SecFinanceDataGateway,
     analyst: FinanceAnalyst,
+    demo_analyst: FinanceAnalyst | None = None,
     artifact_builder: RuntimeArtifactBuilder | None = None,
 ) -> CasePack:
     def preflight() -> dict[str, Any]:
@@ -156,7 +214,13 @@ def build_finance_case_pack(
         description="Evidence-bound public-company analysis using filings and dated market data.",
         input_model=FinanceCaseInput,
         report_model=None,
-        capabilities=("live", "verified_replay", "auto_evolve", "runtime_artifact"),
+        capabilities=(
+            "live",
+            "verified_replay",
+            "auto_evolve",
+            "runtime_artifact",
+            "agent_preset_validation",
+        ),
         skill_policy=CaseSkillPolicy(requiredStatus="initial", requiredCategory="finance"),
         runtime_policy=CaseRuntimePolicy(
             maxMutationAttempts=1,
@@ -175,7 +239,8 @@ def build_finance_case_pack(
         ),
         data_gateway=FinanceCaseDataGateway(gateway),
         dataset_builder=FinanceDatasetBuilder(),
-        runtime=FinanceCaseRuntime(analyst),
+        runtime=FinanceCaseRuntime(analyst, demo_analyst),
+        preset_runtime=FinancePresetCaseRuntime(analyst, demo_analyst),
         evaluator=FinanceCaseEvaluator(),
         mutation_planner=FinanceCaseMutationPlanner(),
         artifact_builder=artifact_builder,

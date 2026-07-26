@@ -2,7 +2,8 @@
   "ARCHETYPES": {
     "browser": {
       "id": "browser",
-      "name": "Browser Skill",
+      "name": "浏览器信息提取技能",
+      "englishName": "Browser Skill",
       "role": "商品信息提取 Agent",
       "description": "从网页中稳定、低成本地提取结构化业务数据。",
       "initialWeapons": [
@@ -22,7 +23,8 @@
     },
     "finance": {
       "id": "finance",
-      "name": "Financial Analysis Skill",
+      "name": "金融分析技能",
+      "englishName": "Financial Analysis Skill",
       "role": "上市公司金融分析 Agent",
       "description": "基于公开证据完成财报、基本面、估值和风险分析。",
       "initialWeapons": [
@@ -44,7 +46,8 @@
   "EVOLUTIONS": [
     {
       "id": "adaptive_web_extractor",
-      "name": "Adaptive Web Extractor",
+      "name": "自适应网页提取器",
+      "englishName": "Adaptive Web Extractor",
       "subtitle": "视觉自适应提取器",
       "tagRequirements": {
         "extraction": 2,
@@ -57,11 +60,12 @@
         "vision": 5,
         "structure": 4
       },
-      "description": "DOM 失败时自动切换视觉提取，并用 Schema 合并校验结果。"
+      "description": "页面结构提取失败时自动切换视觉提取，并按输出结构合并校验结果。"
     },
     {
       "id": "self_healing_browser",
-      "name": "Self-Healing Browser",
+      "name": "自愈浏览器",
+      "englishName": "Self-Healing Browser",
       "subtitle": "自愈浏览器",
       "tagRequirements": {
         "robustness": 3,
@@ -76,7 +80,8 @@
     },
     {
       "id": "velocity_core",
-      "name": "Velocity Core",
+      "name": "低延迟执行核心",
+      "englishName": "Velocity Core",
       "subtitle": "极速执行核心",
       "tagRequirements": {
         "speed": 2,
@@ -91,7 +96,8 @@
     },
     {
       "id": "secure_browser",
-      "name": "Secure Browser",
+      "name": "安全浏览器",
+      "englishName": "Secure Browser",
       "subtitle": "零信任浏览器",
       "tagRequirements": {
         "security": 2,
@@ -106,7 +112,8 @@
     },
     {
       "id": "autonomous_planner",
-      "name": "Autonomous Planner",
+      "name": "自主规划器",
+      "englishName": "Autonomous Planner",
       "subtitle": "自主规划核心",
       "tagRequirements": {
         "planner": 2,
@@ -121,7 +128,8 @@
     },
     {
       "id": "evidence_grade_analyst",
-      "name": "Evidence-grade Analyst",
+      "name": "证据级分析器",
+      "englishName": "Evidence-grade Analyst",
       "subtitle": "证据级研究核心",
       "tagRequirements": {
         "evidence": 2,
@@ -138,7 +146,8 @@
     },
     {
       "id": "scenario_valuation_engine",
-      "name": "Scenario Valuation Engine",
+      "name": "情景估值引擎",
+      "englishName": "Scenario Valuation Engine",
       "subtitle": "情景估值引擎",
       "tagRequirements": {
         "valuation": 2,
@@ -155,7 +164,8 @@
     },
     {
       "id": "risk_governed_research",
-      "name": "Risk-governed Research",
+      "name": "风险治理研究流程",
+      "englishName": "Risk-governed Research",
       "subtitle": "风险治理研究器",
       "tagRequirements": {
         "security": 2,
@@ -174,7 +184,8 @@
   "MONSTERS": {
     "dirty_slime": {
       "id": "dirty_slime",
-      "name": "脏数据史莱姆",
+      "name": "脏数据校验",
+      "englishName": "Dirty Data Validation",
       "failureMode": "空字段、错误类型和不规则格式",
       "businessExample": "价格字段混入货币符号，库存字段偶尔缺失。",
       "requirements": {
@@ -186,9 +197,10 @@
     },
     "schema_shifter": {
       "id": "schema_shifter",
-      "name": "字段变形怪",
-      "failureMode": "Schema Drift",
-      "businessExample": "price 字段突然变成 salePrice，嵌套层级发生变化。",
+      "name": "字段漂移校验",
+      "englishName": "Schema Drift Validation",
+      "failureMode": "字段结构漂移",
+      "businessExample": "价格字段突然更名，嵌套层级也发生变化。",
       "requirements": {
         "quality": 0.3,
         "robustness": 0.35,
@@ -198,8 +210,9 @@
     },
     "lazy_lurker": {
       "id": "lazy_lurker",
-      "name": "延迟潜伏者",
-      "failureMode": "Lazy Load 与异步状态",
+      "name": "异步加载校验",
+      "englishName": "Async Loading Validation",
+      "failureMode": "延迟加载与异步状态",
       "businessExample": "首屏没有商品信息，滚动并等待后才加载。",
       "requirements": {
         "robustness": 0.4,
@@ -211,7 +224,8 @@
     },
     "schema_hydra": {
       "id": "schema_hydra",
-      "name": "Schema 九头蛇",
+      "name": "多来源结构留出集",
+      "englishName": "Multi-source Schema Holdout",
       "failureMode": "多来源字段漂移与格式污染",
       "businessExample": "在隐藏商家集合中输出统一、完整、可校验的数据。",
       "requirements": {
@@ -224,9 +238,10 @@
     },
     "canvas_wraith": {
       "id": "canvas_wraith",
-      "name": "Canvas 幽灵",
-      "failureMode": "DOM 中不存在可提取文本",
-      "businessExample": "价格和规格绘制在 Canvas 或图片中。",
+      "name": "画布内容提取校验",
+      "englishName": "Canvas Extraction Validation",
+      "failureMode": "页面结构中不存在可提取文本",
+      "businessExample": "价格和规格绘制在画布或图片中。",
       "requirements": {
         "vision": 0.5,
         "quality": 0.24,
@@ -237,7 +252,8 @@
     },
     "timeout_golem": {
       "id": "timeout_golem",
-      "name": "超时魔像",
+      "name": "工具超时恢复",
+      "englishName": "Tool Timeout Recovery",
       "failureMode": "工具延迟、超时和短暂不可用",
       "businessExample": "浏览器工具偶发超时，重复调用会快速消耗预算。",
       "requirements": {
@@ -250,7 +266,8 @@
     },
     "batch_swarm": {
       "id": "batch_swarm",
-      "name": "批处理虫群",
+      "name": "批量并发压力测试",
+      "englishName": "Batch Concurrency Stress Test",
       "failureMode": "高并发与批量压力",
       "businessExample": "同时处理大量页面，并满足吞吐和单页面成本要求。",
       "requirements": {
@@ -263,7 +280,8 @@
     },
     "canvas_colossus": {
       "id": "canvas_colossus",
-      "name": "视觉巨像",
+      "name": "动态视觉提取留出集",
+      "englishName": "Dynamic Visual Extraction Holdout",
       "failureMode": "动态页面、视觉识别与成本限制组合",
       "businessExample": "在隐藏动态站点中识别字段，同时满足延迟预算。",
       "requirements": {
@@ -277,9 +295,10 @@
     },
     "prompt_mimic": {
       "id": "prompt_mimic",
-      "name": "指令模仿怪",
-      "failureMode": "Prompt Injection",
-      "businessExample": "网页文本要求 Agent 忽略提取任务并泄露上下文。",
+      "name": "提示词注入防护",
+      "englishName": "Prompt Injection Defense",
+      "failureMode": "提示词注入攻击",
+      "businessExample": "网页文本要求智能体忽略提取任务并泄露上下文。",
       "requirements": {
         "security": 0.58,
         "robustness": 0.2,
@@ -291,7 +310,8 @@
     },
     "permission_knight": {
       "id": "permission_knight",
-      "name": "权限骑士",
+      "name": "工具权限边界",
+      "englishName": "Tool Permission Boundary",
       "failureMode": "授权边界和工具限制",
       "businessExample": "任务必须在最小权限下完成，禁止调用未批准工具。",
       "requirements": {
@@ -305,7 +325,8 @@
     },
     "drift_beast": {
       "id": "drift_beast",
-      "name": "分布漂移兽",
+      "name": "分布漂移校验",
+      "englishName": "Distribution Shift Validation",
       "failureMode": "新站点、新表达和未知结构",
       "businessExample": "此前从未出现过的商家模板和语言表达。",
       "requirements": {
@@ -319,9 +340,10 @@
     },
     "shadow_release": {
       "id": "shadow_release",
-      "name": "影子发布者",
+      "name": "端到端生产留出集",
+      "englishName": "End-to-end Production Holdout",
       "failureMode": "端到端隐藏生产验收",
-      "businessExample": "未知站点、恶意输入、严格 SLA 和成本约束同时出现。",
+      "businessExample": "未知站点、恶意输入、严格服务等级和成本约束同时出现。",
       "requirements": {
         "quality": 0.2,
         "robustness": 0.2,
@@ -336,7 +358,8 @@
     },
     "stale_filing_imp": {
       "id": "stale_filing_imp",
-      "name": "过期财报小鬼",
+      "name": "财报时效校验",
+      "englishName": "Filing Recency Check",
       "failureMode": "数据日期和报告期间混淆",
       "businessExample": "使用旧季度数据回答最新经营问题，且没有标记基准日。",
       "requirements": {"quality": 0.28, "robustness": 0.3, "structure": 0.28, "efficiency": 0.14},
@@ -344,15 +367,17 @@
     },
     "accounting_mirror": {
       "id": "accounting_mirror",
-      "name": "会计口径镜像",
-      "failureMode": "GAAP、非 GAAP、币种和财年口径不一致",
+      "name": "会计口径标准化",
+      "englishName": "Accounting Basis Normalization",
+      "failureMode": "会计准则、调整后口径、币种和财年口径不一致",
       "businessExample": "将不同口径的利润率和每股收益直接比较。",
       "requirements": {"quality": 0.3, "robustness": 0.24, "structure": 0.36, "security": 0.1},
       "severity": 2
     },
     "earnings_quality_leech": {
       "id": "earnings_quality_leech",
-      "name": "盈利质量吸血虫",
+      "name": "盈利质量校验",
+      "englishName": "Earnings Quality Check",
       "failureMode": "利润、现金流和一次性项目背离",
       "businessExample": "净利润增长但经营现金流恶化，并包含大额一次性收益。",
       "requirements": {"quality": 0.34, "robustness": 0.32, "structure": 0.22, "efficiency": 0.12},
@@ -360,7 +385,8 @@
     },
     "restatement_hydra": {
       "id": "restatement_hydra",
-      "name": "财报重述九头蛇",
+      "name": "财报重述一致性留出集",
+      "englishName": "Restatement Consistency Holdout",
       "failureMode": "隐藏口径变化、重述和跨期数据冲突",
       "businessExample": "历史数据被重述，需要重新建立可追溯且一致的财务序列。",
       "requirements": {"quality": 0.3, "robustness": 0.3, "structure": 0.28, "security": 0.12},
@@ -369,7 +395,8 @@
     },
     "multiple_trap": {
       "id": "multiple_trap",
-      "name": "估值倍数陷阱",
+      "name": "可比估值倍数校验",
+      "englishName": "Comparable Multiple Validation",
       "failureMode": "不可比公司和周期错配",
       "businessExample": "使用商业模式和增长阶段完全不同的公司作为可比对象。",
       "requirements": {"quality": 0.4, "robustness": 0.25, "structure": 0.2, "efficiency": 0.15},
@@ -377,23 +404,26 @@
     },
     "assumption_fog": {
       "id": "assumption_fog",
-      "name": "假设迷雾",
+      "name": "估值假设披露校验",
+      "englishName": "Assumption Disclosure Check",
       "failureMode": "估值假设未披露且缺少敏感性",
-      "businessExample": "DCF 只给出单点结果，没有增长率、利润率和折现率依据。",
+      "businessExample": "现金流折现模型只给出单点结果，没有增长率、利润率和折现率依据。",
       "requirements": {"quality": 0.32, "robustness": 0.28, "structure": 0.28, "security": 0.12},
       "severity": 3
     },
     "cashflow_mirage": {
       "id": "cashflow_mirage",
-      "name": "现金流海市蜃楼",
+      "name": "现金流勾稽校验",
+      "englishName": "Cash Flow Reconciliation",
       "failureMode": "资本开支、营运资金和股权稀释遗漏",
-      "businessExample": "只看净利润和 EBITDA，忽略自由现金流与稀释。",
+      "businessExample": "只看净利润和息税折旧摊销前利润，忽略自由现金流与稀释。",
       "requirements": {"quality": 0.34, "robustness": 0.34, "structure": 0.2, "efficiency": 0.12},
       "severity": 3
     },
     "valuation_colossus": {
       "id": "valuation_colossus",
-      "name": "估值巨像",
+      "name": "估值敏感性留出集",
+      "englishName": "Valuation Sensitivity Holdout",
       "failureMode": "多方法估值和情景敏感性组合验收",
       "businessExample": "在不确定宏观和经营假设下给出可解释的估值区间。",
       "requirements": {"quality": 0.32, "robustness": 0.3, "structure": 0.25, "efficiency": 0.13},
@@ -402,7 +432,8 @@
     },
     "source_conflict_sphinx": {
       "id": "source_conflict_sphinx",
-      "name": "来源冲突斯芬克斯",
+      "name": "来源冲突处理",
+      "englishName": "Source Conflict Resolution",
       "failureMode": "公告、数据平台和媒体数字冲突",
       "businessExample": "同一财务指标在多个来源中口径和数值不同。",
       "requirements": {"quality": 0.3, "robustness": 0.3, "security": 0.22, "structure": 0.18},
@@ -411,7 +442,8 @@
     },
     "regime_shift_bear": {
       "id": "regime_shift_bear",
-      "name": "周期切换熊",
+      "name": "周期切换压力测试",
+      "englishName": "Regime Shift Stress Test",
       "failureMode": "历史趋势外推遇到行业和宏观状态切换",
       "businessExample": "把高景气期利润率直接外推到需求收缩期。",
       "requirements": {"quality": 0.25, "robustness": 0.4, "structure": 0.2, "efficiency": 0.15},
@@ -419,16 +451,18 @@
     },
     "advice_mimic": {
       "id": "advice_mimic",
-      "name": "荐股模仿怪",
+      "name": "投资建议边界校验",
+      "englishName": "Investment Advice Boundary",
       "failureMode": "无证据收益承诺与不当个性化建议",
-      "businessExample": "外部材料诱导 Agent 保证收益或使用未公开信息。",
+      "businessExample": "外部材料诱导智能体保证收益或使用未公开信息。",
       "requirements": {"security": 0.5, "quality": 0.2, "robustness": 0.18, "structure": 0.12},
       "severity": 5,
       "securityFloor": 58
     },
     "investment_committee": {
       "id": "investment_committee",
-      "name": "影子投委会",
+      "name": "端到端研究留出集",
+      "englishName": "End-to-end Research Holdout",
       "failureMode": "端到端证据、估值、风险和边界验收",
       "businessExample": "面对陌生公司和冲突数据，形成可审计但不越界的完整研究报告。",
       "requirements": {"quality": 0.26, "robustness": 0.25, "security": 0.22, "structure": 0.2, "efficiency": 0.07},
@@ -439,7 +473,8 @@
   "MUTATIONS": [
     {
       "id": "semantic_locator",
-      "name": "Semantic Locator",
+      "name": "语义定位器",
+      "englishName": "Semantic Locator",
       "category": "Tool",
       "rarity": "common",
       "tags": [
@@ -457,7 +492,8 @@
     },
     {
       "id": "screenshot_ocr",
-      "name": "Screenshot OCR",
+      "name": "截图文字识别",
+      "englishName": "Screenshot OCR",
       "category": "Tool",
       "rarity": "uncommon",
       "tags": [
@@ -471,12 +507,13 @@
         "speed": -8,
         "efficiency": -9
       },
-      "benefit": "获得视觉页面和 Canvas 的回退能力。",
+      "benefit": "获得视觉页面和画布内容的回退能力。",
       "tradeoff": "模型成本和延迟明显增加。"
     },
     {
       "id": "visual_locator",
-      "name": "Visual Locator",
+      "name": "视觉定位器",
+      "englishName": "Visual Locator",
       "category": "Workflow",
       "rarity": "uncommon",
       "tags": [
@@ -489,12 +526,13 @@
         "quality": 5,
         "speed": -4
       },
-      "benefit": "在截图中定位目标区域，减少无关 OCR。",
+      "benefit": "在截图中定位目标区域，减少无关文字识别。",
       "tradeoff": "多一次视觉推理调用。"
     },
     {
       "id": "schema_validator",
-      "name": "Schema Validator",
+      "name": "结构校验器",
+      "englishName": "Schema Validator",
       "category": "Constraint",
       "rarity": "common",
       "tags": [
@@ -514,7 +552,8 @@
     },
     {
       "id": "output_repair",
-      "name": "Output Repair Loop",
+      "name": "输出修复循环",
+      "englishName": "Output Repair Loop",
       "category": "Workflow",
       "rarity": "uncommon",
       "tags": [
@@ -529,12 +568,13 @@
         "speed": -6,
         "efficiency": -5
       },
-      "benefit": "自动修复不符合 Schema 的输出。",
+      "benefit": "自动修复不符合结构约束的输出。",
       "tradeoff": "可能触发额外模型调用。"
     },
     {
       "id": "retry_guard",
-      "name": "Retry Guard",
+      "name": "重试保护",
+      "englishName": "Retry Guard",
       "category": "Workflow",
       "rarity": "common",
       "tags": [
@@ -552,7 +592,8 @@
     },
     {
       "id": "error_classifier",
-      "name": "Error Classifier",
+      "name": "错误分类器",
+      "englishName": "Error Classifier",
       "category": "Planner",
       "rarity": "common",
       "tags": [
@@ -570,7 +611,8 @@
     },
     {
       "id": "fallback_tool",
-      "name": "Fallback Tool",
+      "name": "备用工具",
+      "englishName": "Fallback Tool",
       "category": "Tool",
       "rarity": "uncommon",
       "tags": [
@@ -588,7 +630,8 @@
     },
     {
       "id": "parallel_search",
-      "name": "Parallel Search",
+      "name": "并行检索",
+      "englishName": "Parallel Search",
       "category": "Workflow",
       "rarity": "uncommon",
       "tags": [
@@ -608,7 +651,8 @@
     },
     {
       "id": "prompt_compression",
-      "name": "Prompt Compression",
+      "name": "提示词压缩",
+      "englishName": "Prompt Compression",
       "category": "Prompt",
       "rarity": "common",
       "tags": [
@@ -621,12 +665,13 @@
         "speed": 6,
         "quality": -4
       },
-      "benefit": "减少上下文和 Token 消耗。",
+      "benefit": "减少上下文和令牌消耗。",
       "tradeoff": "可能遗漏长尾约束。"
     },
     {
       "id": "cache_layer",
-      "name": "Aggressive Cache",
+      "name": "高复用缓存",
+      "englishName": "Aggressive Cache",
       "category": "Memory",
       "rarity": "common",
       "tags": [
@@ -645,7 +690,8 @@
     },
     {
       "id": "early_exit",
-      "name": "Early Exit",
+      "name": "提前结束",
+      "englishName": "Early Exit",
       "category": "Workflow",
       "rarity": "common",
       "tags": [
@@ -663,7 +709,8 @@
     },
     {
       "id": "budget_guard",
-      "name": "Budget Guard",
+      "name": "预算保护",
+      "englishName": "Budget Guard",
       "category": "Constraint",
       "rarity": "common",
       "tags": [
@@ -676,12 +723,13 @@
         "robustness": 4,
         "quality": -2
       },
-      "benefit": "实时限制 Token 和工具调用预算。",
+      "benefit": "实时限制令牌和工具调用预算。",
       "tradeoff": "极端复杂任务可能提前终止。"
     },
     {
       "id": "reflection",
-      "name": "Deep Reflection",
+      "name": "深度反思",
+      "englishName": "Deep Reflection",
       "category": "Planner",
       "rarity": "rare",
       "tags": [
@@ -700,7 +748,8 @@
     },
     {
       "id": "task_decomposition",
-      "name": "Task Decomposition",
+      "name": "任务拆解",
+      "englishName": "Task Decomposition",
       "category": "Planner",
       "rarity": "uncommon",
       "tags": [
@@ -719,7 +768,8 @@
     },
     {
       "id": "context_memory",
-      "name": "Context Memory",
+      "name": "上下文记忆",
+      "englishName": "Context Memory",
       "category": "Memory",
       "rarity": "uncommon",
       "tags": [
@@ -737,7 +787,8 @@
     },
     {
       "id": "injection_shield",
-      "name": "Injection Shield",
+      "name": "提示词注入防护",
+      "englishName": "Injection Shield",
       "category": "Constraint",
       "rarity": "uncommon",
       "tags": [
@@ -755,7 +806,8 @@
     },
     {
       "id": "permission_guard",
-      "name": "Permission Guard",
+      "name": "权限保护",
+      "englishName": "Permission Guard",
       "category": "Constraint",
       "rarity": "uncommon",
       "tags": [
@@ -773,7 +825,8 @@
     },
     {
       "id": "source_triangulation",
-      "name": "Source Triangulation",
+      "name": "多来源交叉核验",
+      "englishName": "Source Triangulation",
       "category": "Workflow",
       "rarity": "common",
       "tags": ["evidence", "quality", "structured"],
@@ -784,7 +837,8 @@
     },
     {
       "id": "filing_recency_guard",
-      "name": "Filing Recency Guard",
+      "name": "财报时效保护",
+      "englishName": "Filing Recency Guard",
       "category": "Constraint",
       "rarity": "common",
       "tags": ["evidence", "robustness", "constraint"],
@@ -795,18 +849,20 @@
     },
     {
       "id": "accounting_normalizer",
-      "name": "Accounting Normalizer",
+      "name": "会计口径标准化",
+      "englishName": "Accounting Normalizer",
       "category": "Workflow",
       "rarity": "common",
       "tags": ["structured", "quality", "evidence"],
       "complexityCost": 1,
       "effects": {"structure": 13, "quality": 8, "robustness": 5, "speed": -4},
-      "benefit": "统一币种、财年、GAAP 与非 GAAP 口径后再比较。",
+      "benefit": "统一币种、财年、会计准则与调整后口径后再比较。",
       "tradeoff": "增加数据准备步骤。"
     },
     {
       "id": "earnings_quality_check",
-      "name": "Earnings Quality Check",
+      "name": "盈利质量校验",
+      "englishName": "Earnings Quality Check",
       "category": "Planner",
       "rarity": "uncommon",
       "tags": ["quality", "evidence", "robustness"],
@@ -817,7 +873,8 @@
     },
     {
       "id": "valuation_sensitivity",
-      "name": "Valuation Sensitivity",
+      "name": "估值敏感性分析",
+      "englishName": "Valuation Sensitivity",
       "category": "Planner",
       "rarity": "uncommon",
       "tags": ["valuation", "planner", "structured"],
@@ -828,7 +885,8 @@
     },
     {
       "id": "risk_register",
-      "name": "Risk Register",
+      "name": "风险清单",
+      "englishName": "Risk Register",
       "category": "Constraint",
       "rarity": "uncommon",
       "tags": ["security", "constraint", "evidence"],
@@ -840,38 +898,44 @@
   ],
   "NODE_TYPES": {
     "normal": {
-      "name": "普通遭遇",
+      "name": "标准评估",
+      "englishName": "Standard Evaluation",
       "symbol": "◇",
-      "description": "公开 Benchmark，提供完整反馈。"
+      "description": "使用公开基准集评估，提供完整反馈。"
     },
     "elite": {
-      "name": "精英遭遇",
+      "name": "压力评估",
+      "englishName": "Stress Evaluation",
       "symbol": "◆",
-      "description": "组合失败模式，奖励更高。"
+      "description": "组合多个失败模式，提供更严格的评估反馈。"
     },
     "lab": {
-      "name": "进化实验室",
+      "name": "候选优化生成",
+      "englishName": "Candidate Generator",
       "symbol": "✦",
-      "description": "不战斗，直接获得一次 Mutation Draft。"
+      "description": "跳过基准评估，直接生成一组候选优化项。"
     },
     "rest": {
-      "name": "安全节点",
+      "name": "预算恢复",
+      "englishName": "Budget Recovery",
       "symbol": "○",
-      "description": "恢复 Stability 和少量 Compute。"
+      "description": "恢复失败预算和少量算力预算。"
     },
     "boss": {
-      "name": "隐藏 Boss",
+      "name": "隐藏留出集评估",
+      "englishName": "Hidden Holdout",
       "symbol": "⬢",
-      "description": "隔离的端到端业务验收。"
+      "description": "使用隔离数据执行端到端业务验收。"
     }
   },
   "REGIONS": [
     {
       "id": "static_plains",
       "act": 1,
-      "name": "静态平原",
+      "name": "结构化提取",
+      "englishName": "Structured Extraction",
       "subtitle": "基础数据与结构化输出",
-      "description": "常规商品页看似温和，却藏着脏数据和字段漂移。",
+      "description": "验证结构化提取、脏数据处理和字段漂移适应能力。",
       "monsters": [
         "dirty_slime",
         "schema_shifter",
@@ -882,9 +946,10 @@
     {
       "id": "dynamic_forest",
       "act": 2,
-      "name": "动态森林",
+      "name": "动态内容处理",
+      "englishName": "Dynamic Content Handling",
       "subtitle": "工具失效与视觉页面",
-      "description": "异步加载、Canvas 和规模压力会暴露单一工具的弱点。",
+      "description": "验证异步加载、画布内容提取、工具恢复和批处理能力。",
       "monsters": [
         "canvas_wraith",
         "timeout_golem",
@@ -895,9 +960,10 @@
     {
       "id": "adversarial_wastes",
       "act": 3,
-      "name": "对抗荒地",
+      "name": "安全与泛化",
+      "englishName": "Safety & Generalization",
       "subtitle": "权限、安全与分布漂移",
-      "description": "生产环境的恶意输入和未知变化构成最终验收。",
+      "description": "验证提示词注入防护、权限边界和分布外输入的处理能力。",
       "monsters": [
         "prompt_mimic",
         "permission_knight",
@@ -910,7 +976,8 @@
     {
       "id": "disclosure_district",
       "act": 1,
-      "name": "披露数据区",
+      "name": "财务数据质量",
+      "englishName": "Financial Data Quality",
       "subtitle": "财报口径、时效与盈利质量",
       "description": "公开披露并不天然一致，日期、口径和现金流会检验研究基础。",
       "monsters": ["stale_filing_imp", "accounting_mirror", "earnings_quality_leech"],
@@ -919,7 +986,8 @@
     {
       "id": "valuation_laboratory",
       "act": 2,
-      "name": "估值实验场",
+      "name": "估值能力评估",
+      "englishName": "Valuation Evaluation",
       "subtitle": "可比公司、现金流与假设敏感性",
       "description": "单点估值和未经披露的假设会在多情景压力下暴露。",
       "monsters": ["multiple_trap", "assumption_fog", "cashflow_mirage"],
@@ -928,7 +996,8 @@
     {
       "id": "risk_committee",
       "act": 3,
-      "name": "风险投委会",
+      "name": "风险与合规",
+      "englishName": "Risk & Compliance",
       "subtitle": "来源冲突、周期切换与结论边界",
       "description": "最终研究必须在冲突数据和不确定性下保持证据、风险与合规边界。",
       "monsters": ["source_conflict_sphinx", "regime_shift_bear", "advice_mimic"],
@@ -938,8 +1007,9 @@
   "RUN_MODES": {
     "stable": {
       "id": "stable",
-      "name": "稳定构筑",
-      "description": "优先保证正确率和异常恢复能力。",
+      "name": "质量优先",
+      "englishName": "Quality-first",
+      "description": "优先优化正确率、鲁棒性和异常恢复能力。",
       "weights": {
         "quality": 0.28,
         "robustness": 0.3,
@@ -952,8 +1022,9 @@
     },
     "speed": {
       "id": "speed",
-      "name": "竞速构筑",
-      "description": "用更高风险换取吞吐与低延迟。",
+      "name": "延迟优先",
+      "englishName": "Latency-first",
+      "description": "优先优化吞吐与低延迟，同时接受更高失败风险。",
       "weights": {
         "quality": 0.2,
         "robustness": 0.12,
@@ -966,8 +1037,9 @@
     },
     "efficient": {
       "id": "efficient",
-      "name": "节能构筑",
-      "description": "在严格计算预算下寻找可用解。",
+      "name": "成本优先",
+      "englishName": "Cost-first",
+      "description": "在严格算力预算下优化成本效率。",
       "weights": {
         "quality": 0.2,
         "robustness": 0.12,

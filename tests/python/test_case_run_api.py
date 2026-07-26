@@ -45,6 +45,7 @@ def test_generic_case_api_runs_finance_pack_and_keeps_compatibility(tmp_path: Pa
                 "verified_replay",
                 "auto_evolve",
                 "runtime_artifact",
+                "agent_preset_validation",
             ],
         }
         detail = api.get("/api/case-packs/finance-stock-analysis")

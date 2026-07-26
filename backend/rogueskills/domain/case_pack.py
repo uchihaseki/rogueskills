@@ -13,6 +13,7 @@ from rogueskills.agents.case_runtime import (
     CaseMutationPlanner,
     CaseRuntime,
     DatasetBuilder,
+    PresetCaseRuntime,
     RuntimeArtifactBuilder,
 )
 from rogueskills.contracts.case_runtime import CaseRuntimePolicy, CaseSkillPolicy
@@ -43,6 +44,7 @@ class CasePack:
     data_gateway: CaseDataGateway
     dataset_builder: DatasetBuilder
     runtime: CaseRuntime
+    preset_runtime: PresetCaseRuntime | None
     evaluator: CaseEvaluator
     mutation_planner: CaseMutationPlanner | None
     artifact_builder: RuntimeArtifactBuilder | None

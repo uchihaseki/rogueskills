@@ -40,6 +40,16 @@ class CaseRuntime(Protocol):
     ) -> dict[str, Any]: ...
 
 
+class PresetCaseRuntime(Protocol):
+    async def execute_preset(
+        self,
+        preset: dict[str, Any],
+        case_input: dict[str, Any],
+        dataset: dict[str, Any],
+        execution_policy: dict[str, Any],
+    ) -> dict[str, Any]: ...
+
+
 class CaseEvaluator(Protocol):
     def evaluate(
         self,
@@ -86,3 +96,7 @@ class CaseSkillStore(Protocol):
         expected_version_id: str,
         runtime_evidence: dict[str, Any] | None = None,
     ) -> dict[str, Any]: ...
+
+
+class AgentPresetStore(Protocol):
+    def get(self, preset_id: str) -> dict[str, Any] | None: ...

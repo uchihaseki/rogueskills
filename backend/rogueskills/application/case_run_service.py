@@ -6,7 +6,9 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
+from rogueskills.adapters.agent_preset_loader import AgentPresetIntegrityError, load_agent_preset
 from rogueskills.agents.case_runtime import (
+    AgentPresetStore,
     CaseRunStore,
     CaseRuntimeError,
     CaseSkillStore,
@@ -27,9 +29,16 @@ def _iso_now() -> str:
 
 
 class CaseRunService:
-    def __init__(self, *, skills: CaseSkillStore, cases: CaseRunStore) -> None:
+    def __init__(
+        self,
+        *,
+        skills: CaseSkillStore,
+        cases: CaseRunStore,
+        presets: AgentPresetStore | None = None,
+    ) -> None:
         self.skills = skills
         self.cases = cases
+        self.presets = presets
 
     async def run(
         self,
@@ -48,6 +57,7 @@ class CaseRunService:
             if pack.input_model is not None
             else dict(case_input)
         )
+        bound_preset = self._bound_preset(skill=skill, pack=pack, auto_evolve=auto_evolve)
         case_id = f"{run_id_prefix}-{uuid4().hex}"
         state: dict[str, Any] = {
             "schemaVersion": "1.0.0",
@@ -59,6 +69,7 @@ class CaseRunService:
             "replayCaseId": replay_case_id,
             "skillId": skill["id"],
             "baseSkillVersionId": skill["currentVersionId"],
+            "runtimePresetId": bound_preset["id"] if bound_preset else None,
             "evolvedSkillVersionId": None,
             "status": "running",
             "phase": "acquiring_sources",
@@ -90,17 +101,27 @@ class CaseRunService:
 
             state["phase"] = "executing_baseline"
             self.cases.save(state)
-            baseline_report = await pack.runtime.execute(
-                skill["genome"],
-                self._runtime_context(
-                    case_id=case_id,
-                    stage="baseline",
-                    skill_id=skill["id"],
-                    skill_version_id=skill["currentVersionId"],
-                    case_input=validated_input,
-                ),
-                dataset,
+            runtime_context = self._runtime_context(
+                case_id=case_id,
+                stage="baseline",
+                skill_id=skill["id"],
+                skill_version_id=skill["currentVersionId"],
+                case_input=validated_input,
             )
+            if bound_preset is not None:
+                assert pack.preset_runtime is not None
+                baseline_report = await pack.preset_runtime.execute_preset(
+                    bound_preset,
+                    runtime_context,
+                    dataset,
+                    self._preset_execution_policy(pack=pack, preset=bound_preset),
+                )
+            else:
+                baseline_report = await pack.runtime.execute(
+                    skill["genome"],
+                    runtime_context,
+                    dataset,
+                )
             baseline_report = self._validate_report(pack, baseline_report)
             baseline_evaluation = pack.evaluator.evaluate(
                 baseline_report,
@@ -213,6 +234,58 @@ class CaseRunService:
             "stage": stage,
             "skillId": skill_id,
             "skillVersionId": skill_version_id,
+        }
+
+    def _bound_preset(
+        self, *, skill: dict[str, Any], pack: CasePack, auto_evolve: bool
+    ) -> dict[str, Any] | None:
+        binding = skill.get("genome", {}).get("runtimeBinding")
+        if not isinstance(binding, dict) or binding.get("kind") != "agent-preset":
+            return None
+        if auto_evolve:
+            raise ApplicationError(
+                "BOUND_PRESET_CANNOT_AUTO_EVOLVE",
+                "绑定 AgentPreset 的 Skill Version 不能再次执行 autoEvolve。",
+                status_code=409,
+            )
+        if self.presets is None or pack.preset_runtime is None:
+            raise ApplicationError(
+                "BOUND_PRESET_RUNTIME_UNAVAILABLE",
+                "当前 Case Runtime 无法执行 Skill Version 绑定的 AgentPreset。",
+                status_code=409,
+            )
+        preset = self.presets.get(str(binding.get("presetId") or ""))
+        if not preset or preset.get("digest") != binding.get("presetDigest"):
+            raise ApplicationError(
+                "BOUND_PRESET_INTEGRITY_FAILED",
+                "Skill Version 绑定的 AgentPreset 不存在或 digest 不匹配。",
+                status_code=409,
+            )
+        try:
+            load_agent_preset(preset)
+        except AgentPresetIntegrityError as error:
+            raise ApplicationError(
+                "BOUND_PRESET_INTEGRITY_FAILED",
+                "Skill Version 绑定的 AgentPreset 内容校验失败。",
+                status_code=409,
+            ) from error
+        return preset
+
+    @staticmethod
+    def _preset_execution_policy(*, pack: CasePack, preset: dict[str, Any]) -> dict[str, Any]:
+        defaults = preset.get("runtimeDefaults") or {}
+        return {
+            "contractVersion": "case-validation-execution-v1",
+            "timeoutMs": min(
+                int(pack.runtime_policy.timeoutMs),
+                int(defaults.get("timeoutMs") or pack.runtime_policy.timeoutMs),
+            ),
+            "maxTokens": int(defaults.get("maxTokens") or 12000),
+            "maxToolCalls": int(defaults.get("maxToolCalls") or 0),
+            "priority": str(defaults.get("priority") or "quality"),
+            "enforceBudget": bool(defaults.get("enforceBudget", True)),
+            "temperature": 0,
+            "toolAuthority": "case-pack",
         }
 
     async def _run_mutation_attempt(

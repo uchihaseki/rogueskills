@@ -247,6 +247,7 @@ export interface NormalizerStatus {
 export interface Archetype {
   id: string
   name: string
+  englishName?: string
   role: string
   description: string
   initialWeapons: string[]
@@ -256,12 +257,14 @@ export interface Archetype {
 export interface RunMode {
   id: string
   name: string
+  englishName?: string
   description: string
   weights: Dictionary<number>
 }
 
 export interface NodeType {
   name: string
+  englishName?: string
   description: string
   symbol: string
 }
@@ -269,6 +272,7 @@ export interface NodeType {
 export interface Monster {
   id: string
   name: string
+  englishName?: string
   failureMode: string
   businessExample: string
   requirements: Dictionary<number>
@@ -283,6 +287,7 @@ export interface ScenarioMonster extends Monster {
 export interface Mutation {
   id: string
   name: string
+  englishName?: string
   category: string
   rarity: string
   tags: string[]
@@ -295,6 +300,7 @@ export interface Mutation {
 export interface Evolution {
   id: string
   name: string
+  englishName?: string
   subtitle: string
   tagRequirements: Dictionary<number>
 }
@@ -310,6 +316,7 @@ export interface RunNode {
 export interface RunRegion {
   act: number
   name: string
+  englishName?: string
   description: string
   layers: RunNode[][]
 }
@@ -326,9 +333,49 @@ export interface BenchmarkResult {
   difficulty?: number
   securityGatePassed?: boolean
   cases?: Array<{ label: string; score: number; passed: boolean }>
+  [key: string]: unknown
+}
+
+export interface NodeBuildSnapshot {
+  stats: Dictionary<number>
+  stability: number
+  compute: number
+  complexityUsed: number
+  mutationIds: string[]
+  evolutionIds: string[]
+}
+
+export interface NodeRunRecord {
+  nodeId: string
+  sequence: number
+  act: number
+  regionId?: string | null
+  regionName: string
+  layer: number
+  type: string
+  difficulty: number
+  monsterId?: string | null
+  status: 'entered' | 'completed' | 'failed'
+  before: NodeBuildSnapshot | null
+  result: (BenchmarkResult & {
+    nodeId?: string
+    kind?: 'rest' | 'lab' | string
+    healed?: number
+    computeReward?: number
+  }) | null
+  reward: {
+    mutationDraftIds: string[]
+    selectedMutationId?: string | null
+    skipped: boolean
+    unlockedEvolutionIds: string[]
+  }
+  after: NodeBuildSnapshot | null
+  logIds: number[]
+  legacyIncomplete: boolean
 }
 
 export interface EvolutionRun {
+  saveVersion: number
   id: string
   seed: string
   modeId: string
@@ -356,6 +403,8 @@ export interface EvolutionRun {
   currentDraft: string[]
   lastResult?: BenchmarkResult | null
   encounterHistory: Array<{ passed: boolean; [key: string]: unknown }>
+  nodeHistory: NodeRunRecord[]
+  nodeHistoryIncomplete?: boolean
   logs: Array<{ id: number; tone: string; message: string; act: number }>
   automation?: {
     status: 'running' | 'completed' | 'failed'
@@ -560,7 +609,7 @@ export interface FinanceCaseEvaluation {
 export interface FinanceResearchReport {
   id: string
   caseId: string
-  stage: 'baseline' | 'evolved'
+  stage: 'baseline' | 'evolved' | 'candidate'
   generatedAt: string
   skillId: string
   skillVersionId: string
@@ -640,4 +689,98 @@ export interface FinanceCasePreflight {
   analyst: NormalizerStatus
   sources: Array<{ id: string; name: string; configured: boolean; reachable?: boolean | null; state?: string }>
   runtime: string
+}
+
+export interface CaseValidationOption {
+  caseId: string
+  casePackId: string
+  casePackVersion: string
+  mode: 'verified_replay'
+  sourceMode: 'live' | 'verified_replay'
+  input: { ticker?: string; asOfDate?: string; [key: string]: unknown }
+  caseLabel?: string | null
+  caseDescription?: string | null
+  ticker?: string | null
+  asOfDate?: string | null
+  sourceCount: number
+  sourceProviders: string[]
+  sourceCapturedAt?: string | null
+  sourceBundleDigest: string
+  demoIncluded: boolean
+  sourceCaseId?: string | null
+  runtimeVerified: boolean
+  createdAt?: string | null
+}
+
+export interface CaseValidation {
+  schemaVersion: '1.0.0'
+  id: string
+  sourceRunId: string
+  candidatePresetId: string
+  candidatePresetDigest: string
+  casePackId: string
+  casePackVersion: string
+  mode: 'verified_replay'
+  replayCaseId: string
+  demoIncluded?: boolean
+  input: { ticker?: string; asOfDate?: string; [key: string]: unknown }
+  skillId: string
+  baseSkillVersionId: string
+  status: 'queued' | 'running' | 'succeeded' | 'failed'
+  phase: 'queued' | 'loading_replay' | 'validating_preset' | 'building_dataset'
+    | 'executing_baseline' | 'evaluating_baseline' | 'executing_candidate'
+    | 'evaluating_candidate' | 'comparing' | 'promoting' | 'completed' | 'failed'
+  sourceBundleDigest?: string | null
+  datasetDigest?: string | null
+  executionPolicyDigest?: string | null
+  executionPolicy?: {
+    contractVersion: 'case-validation-execution-v1'
+    timeoutMs: number
+    maxTokens: number
+    maxToolCalls: number
+    priority: string
+    enforceBudget: boolean
+    temperature: number
+    analyst: { mode: string; provider: string; model?: string | null; configured: boolean }
+    toolAuthority: 'case-pack'
+  } | null
+  baseline?: { report: FinanceResearchReport; evaluation: FinanceCaseEvaluation } | null
+  candidate?: { report: FinanceResearchReport; evaluation: FinanceCaseEvaluation } | null
+  comparison?: {
+    baselineScore: number
+    candidateScore: number
+    scoreDelta: number
+    baselinePassed: boolean
+    candidatePassed: boolean
+    baselineHardGatesPassed: boolean
+    candidateHardGatesPassed: boolean
+    baselineFailedCaseIds: string[]
+    candidateFailedCaseIds: string[]
+    repairedCaseIds: string[]
+    regressedCaseIds: string[]
+    runtimeVerified: boolean
+    accepted: boolean
+  } | null
+  contributionCoverage: Array<{
+    kind: 'mutation' | 'evolution'
+    id: string
+    targetCaseIds: string[]
+    repairedCaseIds: string[]
+    attribution: 'associated_not_causal'
+  }>
+  runtimeVerified: boolean
+  accepted: boolean
+  promotion: {
+    status: 'not_eligible' | 'pending' | 'created' | 'version_conflict' | 'failed'
+    promoted: boolean
+    evolvedSkillVersionId?: string | null
+    currentSkillVersionId?: string | null
+    error?: { code: string; message: string } | null
+  }
+  createdAt: string
+  completedAt?: string | null
+  retryOfValidationId?: string | null
+  retryCount?: number
+  revision: number
+  error?: { code: string; message: string; retryable: boolean; details?: Record<string, unknown> } | null
 }

@@ -8,9 +8,9 @@ defineProps<{ controller: EvolutionController; mutation: Mutation }>()
 <template>
   <button class="mutation-card" :class="mutation.rarity" @click="controller.chooseMutation(mutation.id)">
     <div class="mutation-card-top"><span>{{ mutation.category }}</span><em>{{ mutation.rarity }}</em></div>
-    <h3>{{ mutation.name }}</h3>
+    <h3>{{ mutation.name }}</h3><small>{{ mutation.englishName }}</small>
     <div class="effect-row"><span v-for="(value, stat) in mutation.effects" :key="stat" class="effect" :class="value > 0 ? 'positive' : 'negative'">{{ controller.catalog.statLabels[stat] ?? stat }} {{ value > 0 ? '+' : '' }}{{ value }}</span></div>
-    <p>{{ mutation.benefit }}</p><div class="tradeoff"><span>代价</span>{{ mutation.tradeoff }}</div>
-    <div class="mutation-card-foot"><span>{{ mutation.tags.map((tag) => `#${tag}`).join(' ') }}</span><strong>复杂度 {{ mutation.complexityCost }}</strong></div>
+    <p>{{ mutation.benefit }}</p><div class="tradeoff"><span>TRADE-OFF · 代价</span>{{ mutation.tradeoff }}</div>
+    <div class="mutation-card-foot"><span>{{ mutation.tags.map((tag) => `#${tag}`).join(' ') }}</span><strong>复杂度 +{{ mutation.complexityCost }}</strong></div>
   </button>
 </template>

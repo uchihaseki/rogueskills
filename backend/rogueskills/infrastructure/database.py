@@ -203,6 +203,43 @@ class CaseRunRow(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class CaseValidationRow(Base):
+    __tablename__ = "case_validations"
+    __table_args__ = (
+        Index("idx_case_validations_created", "created_at"),
+        Index("idx_case_validations_run_created", "source_run_id", "created_at"),
+        Index("idx_case_validations_replay", "replay_case_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    idempotency_key: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    source_run_id: Mapped[str] = mapped_column(
+        String(160), ForeignKey("evolution_runs.id", ondelete="RESTRICT"), nullable=False
+    )
+    candidate_preset_id: Mapped[str] = mapped_column(
+        String(160), ForeignKey("agent_presets.id", ondelete="RESTRICT"), nullable=False
+    )
+    case_pack_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    case_pack_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    replay_case_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    skill_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("skills.id", ondelete="RESTRICT"), nullable=False
+    )
+    base_skill_version_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("skill_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    evolved_skill_version_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("skill_versions.id", ondelete="RESTRICT")
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    phase: Mapped[str] = mapped_column(String(64), nullable=False)
+    state_json: Mapped[str] = mapped_column(Text, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 def create_database(database_url: str) -> tuple[Engine, sessionmaker[Any]]:
     url = make_url(database_url)
     if url.get_backend_name() == "sqlite" and url.database not in {None, "", ":memory:"}:

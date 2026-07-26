@@ -144,7 +144,41 @@
       "additionalProperties": false
     },
     "discovery": { "type": "object" },
-    "lineage": { "type": "object" }
+    "lineage": { "type": "object" },
+    "runtimeBinding": {
+      "type": "object",
+      "required": ["contractVersion", "kind", "presetId", "presetDigest", "validationId"],
+      "properties": {
+        "contractVersion": { "const": "1.0.0" },
+        "kind": { "const": "agent-preset" },
+        "presetId": { "type": "string", "minLength": 1 },
+        "presetDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "validationId": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "runtimeVerification": {
+      "type": "object",
+      "required": [
+        "runtimeVerified",
+        "casePackId",
+        "casePackVersion",
+        "caseId",
+        "evaluationId",
+        "verifiedAt"
+      ],
+      "properties": {
+        "runtimeVerified": { "const": true },
+        "casePackId": { "type": "string", "minLength": 1 },
+        "casePackVersion": { "type": "string", "minLength": 1 },
+        "caseId": { "type": "string", "minLength": 1 },
+        "evaluationId": { "type": "string", "minLength": 1 },
+        "sourceDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "datasetDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "verifiedAt": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    }
   },
   "additionalProperties": false
 }

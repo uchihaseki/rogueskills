@@ -71,8 +71,18 @@ class OpenAICompatibleFinanceAnalyst:
         case: dict[str, Any],
         dataset: dict[str, Any],
         feedback: list[dict[str, Any]] | None = None,
+        agent_config: dict[str, Any] | None = None,
     ) -> FinanceNarrative:
         schema = FinanceNarrative.model_json_schema()
+        execution_policy = (
+            case.get("executionPolicy") if isinstance(case.get("executionPolicy"), dict) else {}
+        )
+        temperature = float(execution_policy.get("temperature", 0))
+        max_tokens = int(execution_policy.get("maxTokens") or 12000)
+        timeout_seconds = min(
+            self.timeout_seconds,
+            max(1.0, float(execution_policy.get("timeoutMs") or 180_000) / 1000),
+        )
         material = {
             "case": case,
             "skill": {
@@ -87,9 +97,12 @@ class OpenAICompatibleFinanceAnalyst:
             "dataset": dataset,
             "evaluatorFeedbackFromPreviousRun": feedback or [],
         }
+        if agent_config is not None:
+            material["agentPresetRuntime"] = agent_config
         payload: dict[str, Any] = {
             "model": self.model,
-            "temperature": 0,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {
@@ -114,7 +127,7 @@ class OpenAICompatibleFinanceAnalyst:
                 f"{self.base_url}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=self.timeout_seconds,
+                timeout=timeout_seconds,
             )
             if response.status_code in {400, 422}:
                 fallback = deepcopy(payload)
@@ -127,7 +140,7 @@ class OpenAICompatibleFinanceAnalyst:
                     f"{self.base_url}/chat/completions",
                     headers=headers,
                     json=fallback,
-                    timeout=self.timeout_seconds,
+                    timeout=timeout_seconds,
                 )
             response.raise_for_status()
             body = response.json()

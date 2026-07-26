@@ -47,9 +47,10 @@ def test_finance_case_pack_registers_with_declared_policy() -> None:
             "capabilities": [
                 "live",
                 "verified_replay",
-                "auto_evolve",
-                "runtime_artifact",
-            ],
+                    "auto_evolve",
+                    "runtime_artifact",
+                    "agent_preset_validation",
+                ],
         }
     ]
     assert pack.runtime_policy.maxMutationAttempts == 1

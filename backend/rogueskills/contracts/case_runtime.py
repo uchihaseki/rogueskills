@@ -101,6 +101,7 @@ class CaseRunState(CaseRuntimeContract):
     replayCaseId: str | None = None
     skillId: str
     baseSkillVersionId: str
+    runtimePresetId: str | None = None
     evolvedSkillVersionId: str | None = None
     status: Literal["queued", "running", "succeeded", "failed"]
     phase: str

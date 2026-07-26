@@ -10,7 +10,7 @@ from .case_runtime import CaseRuntimeError
 
 class FinanceAnalystError(CaseRuntimeError):
     def __init__(self, code: str, message: str, *, retryable: bool = False) -> None:
-        super().__init__(message)
+        super().__init__(code, message, retryable=retryable)
         self.code = code
         self.message = message
         self.retryable = retryable
@@ -35,6 +35,7 @@ class FinanceAnalyst(Protocol):
         case: dict[str, Any],
         dataset: dict[str, Any],
         feedback: list[dict[str, Any]] | None = None,
+        agent_config: dict[str, Any] | None = None,
     ) -> FinanceNarrative: ...
 
 
@@ -55,8 +56,9 @@ class UnavailableFinanceAnalyst:
         case: dict[str, Any],
         dataset: dict[str, Any],
         feedback: list[dict[str, Any]] | None = None,
+        agent_config: dict[str, Any] | None = None,
     ) -> FinanceNarrative:
-        del genome, case, dataset, feedback
+        del genome, case, dataset, feedback, agent_config
         raise FinanceAnalystError(
             "FINANCE_ANALYST_NOT_CONFIGURED",
             "真实金融 Case 需要配置 ROGUESKILLS_LLM_BASE_URL 和 ROGUESKILLS_LLM_MODEL。",

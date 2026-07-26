@@ -19,7 +19,7 @@ from .shared import clamp, create_rng, hash_string, pick, round_number, shuffle
 
 MAX_STABILITY = 12
 MAX_COMPLEXITY = 8
-SAVE_VERSION = 2
+SAVE_VERSION = 3
 BASE_DIFFICULTY = [42, 50, 57]
 FINANCE_MUTATION_IDS = {
     "source_triangulation",
@@ -49,6 +49,141 @@ def _with_log(state: dict[str, Any], message: str, tone: str = "info") -> dict[s
     next_state = deepcopy(state)
     next_state["logs"].append(_log_entry(state, message, tone))
     return next_state
+
+
+def _build_snapshot(state: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "stats": deepcopy(state.get("stats", {})),
+        "stability": int(state.get("stability", 0)),
+        "compute": int(state.get("compute", 0)),
+        "complexityUsed": int(state.get("complexityUsed", 0)),
+        "mutationIds": list(state.get("mutationIds", [])),
+        "evolutionIds": list(state.get("evolutionIds", [])),
+    }
+
+
+def _find_map_node(
+    state: dict[str, Any], node_id: str
+) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    for region in state.get("map", []):
+        for layer in region.get("layers", []):
+            for node in layer:
+                if node.get("id") == node_id:
+                    return region, node
+    return None
+
+
+def _node_record(state: dict[str, Any], node_id: str) -> dict[str, Any] | None:
+    return next(
+        (item for item in state.get("nodeHistory", []) if item.get("nodeId") == node_id),
+        None,
+    )
+
+
+def _start_node_record(state: dict[str, Any], node: dict[str, Any]) -> None:
+    state.setdefault("nodeHistory", [])
+    if _node_record(state, str(node["id"])) is not None:
+        return
+    region = get_current_region(state) or {}
+    state["nodeHistory"].append(
+        {
+            "nodeId": node["id"],
+            "sequence": len(state["nodeHistory"]) + 1,
+            "act": int(node.get("act") or state.get("actIndex", 0) + 1),
+            "regionId": node.get("regionId") or region.get("id"),
+            "regionName": str(region.get("name") or node.get("regionId") or "Unknown Region"),
+            "layer": int(node.get("layer", state.get("layerIndex", 0))),
+            "type": str(node.get("type") or "normal"),
+            "difficulty": int(node.get("difficulty", 0)),
+            "monsterId": node.get("monsterId"),
+            "status": "entered",
+            "before": _build_snapshot(state),
+            "result": None,
+            "reward": {
+                "mutationDraftIds": [],
+                "selectedMutationId": None,
+                "skipped": False,
+                "unlockedEvolutionIds": [],
+            },
+            "after": None,
+            "logIds": [],
+            "legacyIncomplete": False,
+        }
+    )
+
+
+def _append_node_log_ids(state: dict[str, Any], node_id: str, start_index: int) -> None:
+    record = _node_record(state, node_id)
+    if record is None:
+        return
+    known = set(record.get("logIds", []))
+    for item in state.get("logs", [])[start_index:]:
+        log_id = item.get("id")
+        if log_id is not None and log_id not in known:
+            record.setdefault("logIds", []).append(log_id)
+            known.add(log_id)
+
+
+def normalize_run_state(state: dict[str, Any]) -> dict[str, Any]:
+    """Upgrade persisted Run state without inventing unavailable historical evidence."""
+
+    normalized = deepcopy(state)
+    if normalized.get("saveVersion") == SAVE_VERSION and isinstance(
+        normalized.get("nodeHistory"), list
+    ):
+        normalized.setdefault("nodeHistoryIncomplete", False)
+        return normalized
+
+    completed_node_ids = [str(item) for item in normalized.get("completedNodeIds", [])]
+    completed_ids = set(completed_node_ids)
+    encounter_by_node = {
+        str(result.get("nodeId")): result
+        for result in normalized.get("encounterHistory", [])
+        if isinstance(result, dict) and result.get("nodeId")
+    }
+    ordered_node_ids = list(completed_node_ids)
+    ordered_node_ids.extend(
+        node_id for node_id in encounter_by_node if node_id not in completed_ids
+    )
+    history: list[dict[str, Any]] = []
+    for node_id in ordered_node_ids:
+        found = _find_map_node(normalized, node_id)
+        if not found:
+            continue
+        region, node = found
+        result = encounter_by_node.get(node_id)
+        terminal_failure = bool(
+            normalized.get("status") == "defeat" and normalized.get("selectedNodeId") == node_id
+        )
+        history.append(
+            {
+                "nodeId": node_id,
+                "sequence": len(history) + 1,
+                "act": int(node.get("act", 1)),
+                "regionId": node.get("regionId") or region.get("id"),
+                "regionName": str(region.get("name") or node.get("regionId") or "Unknown Region"),
+                "layer": int(node.get("layer", 0)),
+                "type": str(node.get("type") or "normal"),
+                "difficulty": int(node.get("difficulty", 0)),
+                "monsterId": node.get("monsterId"),
+                "status": "failed" if terminal_failure else "completed",
+                "before": None,
+                "result": deepcopy(result) if result is not None else None,
+                "reward": {
+                    "mutationDraftIds": [],
+                    "selectedMutationId": None,
+                    "skipped": False,
+                    "unlockedEvolutionIds": [],
+                },
+                "after": None,
+                "logIds": [],
+                "legacyIncomplete": True,
+            }
+        )
+    normalized["saveVersion"] = SAVE_VERSION
+    normalized["nodeHistory"] = history
+    normalized["nodeHistoryIncomplete"] = bool(ordered_node_ids)
+    return normalized
 
 
 def _create_node(
@@ -182,12 +317,16 @@ def create_run(
         "map": generate_map(normalized_seed, archetype["id"]),
         "completedNodeIds": [],
         "encounterHistory": [],
+        "nodeHistory": [],
+        "nodeHistoryIncomplete": False,
         "currentDraft": [],
         "lastResult": None,
         "logs": [],
     }
     return _with_log(
-        run, f"以 {skill_name} 进入「{mode['name']}」Run，地图 Seed：{normalized_seed}。", "accent"
+        run,
+        f"以 {skill_name} 启动「{mode['name']}」Evaluation Run，Run Seed：{normalized_seed}。",
+        "accent",
     )
 
 
@@ -260,15 +399,19 @@ def select_node(state: dict[str, Any], node_id: str) -> dict[str, Any]:
     label = (
         f"{monster['name']} · {monster['failureMode']}"
         if monster
-        else "进化实验室"
+        else "Candidate Generator"
         if node["type"] == "lab"
-        else "安全节点"
+        else "Budget Recovery"
     )
     next_state = deepcopy(state)
     next_state.update(
         {"phase": "encounter", "selectedNodeId": node["id"], "currentDraft": [], "lastResult": None}
     )
-    return _with_log(next_state, f"选择路线：{label}。")
+    _start_node_record(next_state, node)
+    log_start = len(next_state["logs"])
+    next_state = _with_log(next_state, f"选择测试：{label}。")
+    _append_node_log_ids(next_state, node["id"], log_start)
+    return next_state
 
 
 def evaluate_encounter(
@@ -344,7 +487,8 @@ def create_mutation_draft(state: dict[str, Any], node: dict[str, Any] | None = N
     available = [
         item
         for item in MUTATIONS
-        if item["id"] not in state["mutationIds"] and item["complexityCost"] <= remaining
+        if item["id"] not in state["mutationIds"]
+        and item["complexityCost"] <= remaining
         and not (scenario_id == "finance" and item["id"] in BROWSER_ONLY_MUTATION_IDS)
         and not (scenario_id != "finance" and item["id"] in FINANCE_MUTATION_IDS)
     ]
@@ -401,20 +545,44 @@ def _resolve_rest_node(state: dict[str, Any], node: dict[str, Any]) -> dict[str,
             },
         }
     )
-    next_state = _advance_layer(_complete_selected_node(next_state))
-    return _with_log(next_state, f"在安全节点重整：Stability +{healed}，Compute +10。", "success")
+    next_state = _complete_selected_node(next_state)
+    record = _node_record(next_state, node["id"])
+    if record is not None:
+        record["result"] = deepcopy(next_state["lastResult"])
+        record["status"] = "completed"
+        record["after"] = _build_snapshot(next_state)
+    log_start = len(next_state["logs"])
+    next_state = _with_log(
+        _advance_layer(next_state),
+        f"恢复运行预算：Failure Budget +{healed}，Compute Budget +10。",
+        "success",
+    )
+    _append_node_log_ids(next_state, node["id"], log_start)
+    return next_state
 
 
 def _resolve_lab_node(state: dict[str, Any], node: dict[str, Any]) -> dict[str, Any]:
     next_state = _complete_selected_node(state)
+    draft = create_mutation_draft(state, node)
     next_state.update(
         {
             "phase": "reward",
-            "currentDraft": create_mutation_draft(state, node),
+            "currentDraft": draft,
             "lastResult": {"nodeId": node["id"], "kind": "lab"},
         }
     )
-    return _with_log(next_state, "进入进化实验室：获得一次无战斗 Mutation Draft。", "accent")
+    record = _node_record(next_state, node["id"])
+    if record is not None:
+        record["result"] = deepcopy(next_state["lastResult"])
+        record["reward"]["mutationDraftIds"] = list(draft)
+    log_start = len(next_state["logs"])
+    next_state = _with_log(
+        next_state,
+        "Candidate Generator 已生成一组 Candidate Change，不执行当前 Benchmark。",
+        "accent",
+    )
+    _append_node_log_ids(next_state, node["id"], log_start)
+    return next_state
 
 
 def _resolve_boss(
@@ -425,12 +593,16 @@ def _resolve_boss(
         next_state.update({"status": "defeat", "phase": "ended", "currentDraft": []})
         return _with_log(
             next_state,
-            f"{MONSTERS[node['monsterId']]['name']} 的隐藏验收未通过，本次候选分支终止。",
+            f"{MONSTERS[node['monsterId']]['name']} 未通过 Hidden Holdout，本次 Candidate Run 终止。",
             "danger",
         )
     if state["actIndex"] == len(state["map"]) - 1:
         next_state.update({"status": "victory", "phase": "ended", "currentDraft": []})
-        return _with_log(next_state, "最终隐藏验收通过：该 Skill 获得候选发布资格。", "success")
+        return _with_log(
+            next_state,
+            "最终 Hidden Holdout 通过：该 Skill 获得 Candidate AgentPreset 资格。",
+            "success",
+        )
     next_region = state["map"][state["actIndex"] + 1]
     next_state.update(
         {
@@ -443,7 +615,7 @@ def _resolve_boss(
     )
     return _with_log(
         next_state,
-        f"Boss 通过，进入第 {state['actIndex'] + 2} 幕「{next_region['name']}」。",
+        f"Hidden Holdout 通过，进入 Stage {state['actIndex'] + 2}「{next_region['name']}」。",
         "success",
     )
 
@@ -458,6 +630,7 @@ def resolve_current_node(state: dict[str, Any]) -> dict[str, Any]:
         return _resolve_rest_node(state, node)
     if node["type"] == "lab":
         return _resolve_lab_node(state, node)
+    log_start = len(state["logs"])
     result = evaluate_encounter(state, node)
     assert result is not None
     next_stability = max(0, state["stability"] - result["stabilityDamage"])
@@ -467,20 +640,42 @@ def resolve_current_node(state: dict[str, Any]) -> dict[str, Any]:
     settled["encounterHistory"].append(result)
     settled = _complete_selected_node(settled)
     monster = MONSTERS[node["monsterId"]]
-    outcome = "通过" if result["passed"] else f"失败，Stability -{result['stabilityDamage']}"
+    outcome = "通过" if result["passed"] else f"失败，Failure Budget -{result['stabilityDamage']}"
     settled = _with_log(
         settled,
         f"{monster['name']}：Coverage {result['coverage']}% / {result['threshold']}%，{outcome}。",
         "success" if result["passed"] else "danger",
     )
+    record = _node_record(settled, node["id"])
+    if record is not None:
+        record["result"] = deepcopy(result)
     if node["type"] == "boss":
-        return _resolve_boss(state, node, result, settled)
+        resolved = _resolve_boss(state, node, result, settled)
+        record = _node_record(resolved, node["id"])
+        if record is not None:
+            record["status"] = "completed" if result["passed"] else "failed"
+            record["after"] = _build_snapshot(resolved)
+        _append_node_log_ids(resolved, node["id"], log_start)
+        return resolved
     if next_stability <= 0:
         settled.update({"status": "defeat", "phase": "ended", "currentDraft": []})
-        return _with_log(
-            settled, "Stability 已归零，本次进化分支死亡；Replay 与失败知识已保留。", "danger"
+        settled = _with_log(
+            settled,
+            "Failure Budget 已归零，本次 Evaluation Run 失败；Replay 与失败样本已保留。",
+            "danger",
         )
-    settled.update({"phase": "reward", "currentDraft": create_mutation_draft(settled, node)})
+        record = _node_record(settled, node["id"])
+        if record is not None:
+            record["status"] = "failed"
+            record["after"] = _build_snapshot(settled)
+        _append_node_log_ids(settled, node["id"], log_start)
+        return settled
+    draft = create_mutation_draft(settled, node)
+    settled.update({"phase": "reward", "currentDraft": draft})
+    record = _node_record(settled, node["id"])
+    if record is not None:
+        record["reward"]["mutationDraftIds"] = list(draft)
+    _append_node_log_ids(settled, node["id"], log_start)
     return settled
 
 
@@ -500,7 +695,9 @@ def _unlock_evolutions(state: dict[str, Any]) -> dict[str, Any]:
             next_state["stats"] = _apply_effects(next_state["stats"], evolution["effects"])
             next_state["evolutionIds"].append(evolution["id"])
             next_state = _with_log(
-                next_state, f"武器进化：{evolution['name']} 已形成。", "evolution"
+                next_state,
+                f"Capability Bundle 已启用：{evolution['name']}。",
+                "evolution",
             )
     return next_state
 
@@ -520,19 +717,53 @@ def choose_mutation(state: dict[str, Any], mutation_id: str) -> dict[str, Any]:
     ):
         return deepcopy(state)
     next_state = deepcopy(state)
+    node_id = str(next_state.get("selectedNodeId") or "")
+    log_start = len(next_state["logs"])
+    previous_evolutions = set(next_state.get("evolutionIds", []))
     next_state["stats"] = _apply_effects(state["stats"], mutation["effects"])
     next_state["mutationIds"].append(mutation["id"])
     next_state["complexityUsed"] += mutation["complexityCost"]
     next_state = _with_log(
-        next_state, f"选择 Mutation「{mutation['name']}」：{mutation['benefit']}", "accent"
+        next_state,
+        f"应用 Candidate Change「{mutation['name']}」：{mutation['benefit']}",
+        "accent",
     )
-    return _advance_layer(_unlock_evolutions(next_state))
+    next_state = _unlock_evolutions(next_state)
+    if node_id:
+        record = _node_record(next_state, node_id)
+        if record is not None:
+            record["reward"]["selectedMutationId"] = mutation_id
+            record["reward"]["skipped"] = False
+            record["reward"]["unlockedEvolutionIds"] = [
+                item
+                for item in next_state.get("evolutionIds", [])
+                if item not in previous_evolutions
+            ]
+            record["status"] = "completed"
+            record["after"] = _build_snapshot(next_state)
+    next_state = _advance_layer(next_state)
+    if node_id:
+        _append_node_log_ids(next_state, node_id, log_start)
+    return next_state
 
 
 def skip_mutation(state: dict[str, Any]) -> dict[str, Any]:
     if state["status"] != "active" or state["phase"] != "reward":
         return deepcopy(state)
-    return _advance_layer(_with_log(state, "放弃本次 Mutation，保持当前构筑。"))
+    node_id = str(state.get("selectedNodeId") or "")
+    log_start = len(state["logs"])
+    next_state = _with_log(state, "跳过本次 Candidate Change，保持当前配置。")
+    if node_id:
+        record = _node_record(next_state, node_id)
+        if record is not None:
+            record["reward"]["selectedMutationId"] = None
+            record["reward"]["skipped"] = True
+            record["status"] = "completed"
+            record["after"] = _build_snapshot(next_state)
+    next_state = _advance_layer(next_state)
+    if node_id:
+        _append_node_log_ids(next_state, node_id, log_start)
+    return next_state
 
 
 def _automation_progress(state: dict[str, Any]) -> int:
@@ -579,7 +810,7 @@ def start_automatic_run(
     next_state["automation"] = {
         "status": "running",
         "stage": "planning",
-        "message": "自动进化已启动，正在规划第一场遭遇。",
+        "message": "自动 Evaluation Run 已启动，正在规划第一个测试。",
         "selectedMonsterIds": list(dict.fromkeys(selected_monster_ids)),
         "project": deepcopy(project),
         "completedNodes": 0,
@@ -588,7 +819,7 @@ def start_automatic_run(
     }
     return _with_log(
         next_state,
-        f"自动进化已启动：锁定 {len(next_state['automation']['selectedMonsterIds'])} 个目标怪物。",
+        f"自动 Evaluation Run 已启动：锁定 {len(next_state['automation']['selectedMonsterIds'])} 个目标 Failure Mode。",
         "accent",
     )
 
@@ -640,9 +871,7 @@ def _future_automatic_monsters(state: dict[str, Any]) -> list[dict[str, Any]]:
     return result
 
 
-def _automatic_mutation_score(
-    state: dict[str, Any], mutation: dict[str, Any]
-) -> float:
+def _automatic_mutation_score(state: dict[str, Any], mutation: dict[str, Any]) -> float:
     score = 0.0
     for monster in _future_automatic_monsters(state):
         for stat, weight in monster["requirements"].items():
@@ -683,9 +912,9 @@ def advance_automatic_run(state: dict[str, Any]) -> dict[str, Any]:
             status="completed" if victory else "failed",
             stage="artifact" if victory else "ended",
             message=(
-                "全部隐藏验收通过，正在生成项目产物。"
+                "全部 Hidden Holdout 通过，正在生成 Candidate AgentPreset。"
                 if victory
-                else "自动进化未通过隐藏验收，未生成项目产物。"
+                else "自动 Evaluation Run 未通过 Hidden Holdout，未生成 Candidate AgentPreset。"
             ),
         )
 
@@ -695,7 +924,13 @@ def advance_automatic_run(state: dict[str, Any]) -> dict[str, Any]:
             return deepcopy(state)
         next_state = select_node(state, node["id"])
         monster = MONSTERS.get(node.get("monsterId"))
-        label = monster["name"] if monster else "进化实验室" if node["type"] == "lab" else "安全节点"
+        label = (
+            monster["name"]
+            if monster
+            else "Candidate Generator"
+            if node["type"] == "lab"
+            else "Budget Recovery"
+        )
         return _update_automation(
             next_state,
             stage="encounter",
@@ -711,21 +946,21 @@ def advance_automatic_run(state: dict[str, Any]) -> dict[str, Any]:
                 status="completed" if victory else "failed",
                 stage="artifact" if victory else "ended",
                 message=(
-                    "全部隐藏验收通过，正在生成项目产物。"
+                    "全部 Hidden Holdout 通过，正在生成 Candidate AgentPreset。"
                     if victory
-                    else "自动进化未通过隐藏验收，未生成项目产物。"
+                    else "自动 Evaluation Run 未通过 Hidden Holdout，未生成 Candidate AgentPreset。"
                 ),
             )
         if next_state["phase"] == "reward":
             return _update_automation(
                 next_state,
                 stage="mutation",
-                message="Benchmark 已完成，正在自动选择 Mutation。",
+                message="Evaluation 已完成，正在自动选择 Candidate Change。",
             )
         return _update_automation(
             next_state,
             stage="planning",
-            message="节点已完成，正在规划下一场遭遇。",
+            message="测试已完成，正在规划下一个 Evaluation。",
         )
 
     if state["phase"] == "reward":
@@ -736,9 +971,9 @@ def advance_automatic_run(state: dict[str, Any]) -> dict[str, Any]:
             next_state,
             stage="planning",
             message=(
-                f"已装配 Mutation：{mutation['name']}，正在规划下一场遭遇。"
+                f"已应用 Candidate Change：{mutation['name']}，正在规划下一个 Evaluation。"
                 if mutation
-                else "本轮没有可用 Mutation，正在规划下一场遭遇。"
+                else "本轮没有可用 Candidate Change，正在规划下一个 Evaluation。"
             ),
         )
     return deepcopy(state)
