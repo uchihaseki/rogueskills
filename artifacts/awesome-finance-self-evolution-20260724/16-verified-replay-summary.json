@@ -1,0 +1,31 @@
+{
+  "source": "verified replay of a persisted real AAPL case",
+  "sourceCaseId": "finance-case-6266b782a74c416ea985aa35031aee9d",
+  "sourceCount": 3,
+  "analystCalls": 2,
+  "selectedSkill": {
+    "sourceName": "alphaear-signal-tracker",
+    "skillId": "alphaear-signal-tracker-90641e",
+    "baseSkillVersionId": "alphaear-signal-tracker-90641e@2"
+  },
+  "case": {
+    "id": "case-run-6b6f6bd899d24230a4b493df638daae3",
+    "mode": "verified_replay",
+    "status": "succeeded",
+    "runtimeVerified": true,
+    "baselineScore": 88.0,
+    "evolvedScore": 100.0,
+    "finalScore": 100.0,
+    "mutationStatus": "accepted",
+    "mutationId": "finance-mutation-89ffd11701054549ab04043da73fffab",
+    "evolvedSkillVersionId": "alphaear-signal-tracker-90641e@3"
+  },
+  "artifact": {
+    "financeEvolutionRunId": "run-real-case-run-6b6f6bd899d24230a4b493df638daae3",
+    "agentPresetId": "preset-037f1b90a28332277e86",
+    "agentPresetDigest": "sha256:b152326f2bdce762026da971915a3d6d511477918c611d0813f24756e3bc2843",
+    "runtimeVerified": true,
+    "evidenceMode": "real-finance-case-v1"
+  },
+  "demoOutcome": "baseline evidence gap → mutation proposal → accepted Skill Version → verified AgentPreset"
+}

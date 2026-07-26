@@ -1,0 +1,20 @@
+{
+  "caseId": "case-run-c13f4265126a4e2ca3eb58b5b61b61f3",
+  "casePackRef": "release-readiness@1.0.0",
+  "repository": "openai/openai-python",
+  "ref": "main",
+  "status": "succeeded",
+  "recommendation": "blocked",
+  "runtimeVerified": true,
+  "finalScore": 100.0,
+  "failedCaseIds": [],
+  "baseSkillVersionId": "release-readiness-base@1",
+  "evolvedSkillVersionId": null,
+  "sourceCount": 4,
+  "factCount": 7,
+  "checkRunCount": 19,
+  "sourceBundleDigest": "sha256:2ee8fdb00d0693de9ae05d5def02df1ecdea8de8934e6ad0afbbfc893d505f64",
+  "artifactId": "artifact-43343ba872d8678c944e",
+  "artifactDigest": "sha256:43343ba872d8678c944e62bb5b518f507918604dd87ab00d9015165158e51b07",
+  "liveGatewayCalls": 1
+}

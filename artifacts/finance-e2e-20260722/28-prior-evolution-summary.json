@@ -1,0 +1,48 @@
+{
+  "source": "copied existing data/rogueskills.db; no new search or normalization",
+  "selectedSkillId": "sop-9e7795",
+  "selectedSkillName": "上市公司财报与业绩电话会复盘 SOP",
+  "runId": "run-cffeb5fe-bcd604d7b5",
+  "runStatus": "victory",
+  "automation": {
+    "status": "completed",
+    "stage": "artifact",
+    "message": "全部隐藏验收通过，正在生成项目产物。",
+    "selectedMonsterIds": [
+      "stale_filing_imp",
+      "multiple_trap",
+      "source_conflict_sphinx"
+    ],
+    "project": {
+      "name": "公开资料股票研究 Agent",
+      "description": "基于公开披露、财报与估值假设生成可追溯的股票研究结果。",
+      "scenario": "上市公司基本面、财报、估值与风险分析"
+    },
+    "completedNodes": 12,
+    "totalNodes": 12,
+    "progress": 100
+  },
+  "archetypeId": "finance",
+  "completedNodeCount": 12,
+  "mutationIds": [
+    "accounting_normalizer",
+    "output_repair",
+    "schema_validator",
+    "injection_shield",
+    "retry_guard",
+    "risk_register",
+    "error_classifier",
+    "filing_recency_guard",
+    "prompt_compression"
+  ],
+  "evolutionIds": [
+    "secure_browser",
+    "evidence_grade_analyst",
+    "risk_governed_research",
+    "self_healing_browser"
+  ],
+  "artifactId": "preset-befe3762ccc90d8c53dc",
+  "artifactDigest": "sha256:98bbba3b58afdc119c1ef818052c0d3ff319533cc361b120bd4f953060db839d",
+  "runtimeVerified": false,
+  "exportBytes": 13990
+}

@@ -1,0 +1,14 @@
+{
+  "caseId": "case-run-6ef697f4ee8745d6b84d91cfe305b07e",
+  "mode": "verified_replay",
+  "replayCaseId": "case-run-c13f4265126a4e2ca3eb58b5b61b61f3",
+  "runtimeVerified": true,
+  "finalScore": 100.0,
+  "recommendation": "blocked",
+  "factsEqualToLive": true,
+  "sourcesEqualToLive": true,
+  "liveGatewayCallsBeforeReplay": 1,
+  "liveGatewayCallsAfterReplay": 1,
+  "replayAvoidedLiveGateway": true,
+  "artifactDigest": "sha256:c55d438807f8235ecfb3e64af3576227a9abac1573d363286920f005abf8bdbf"
+}

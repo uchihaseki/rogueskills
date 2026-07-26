@@ -1,0 +1,71 @@
+{
+  "source": "local Awesome Finance Skills snapshot",
+  "sourceRevision": "853f09b4d0baae747759ed31e21ed5c5b2316a5f",
+  "importSummary": {
+    "discovered": 9,
+    "processed": 9,
+    "initialSkills": 9,
+    "reused": 9,
+    "promoted": 0,
+    "rejected": 0
+  },
+  "selectedSkill": {
+    "sourceName": "alphaear-signal-tracker",
+    "skillId": "alphaear-signal-tracker-90641e",
+    "skillVersionId": "alphaear-signal-tracker-90641e@2",
+    "status": "initial",
+    "admissionScore": 85.7
+  },
+  "run": {
+    "id": "run-4c5f6a3f-468407d215",
+    "status": "victory",
+    "phase": "ended",
+    "archetypeId": "finance",
+    "scenarioId": "finance",
+    "completedNodeCount": 12,
+    "mutationIds": [
+      "filing_recency_guard",
+      "risk_register",
+      "accounting_normalizer",
+      "output_repair",
+      "injection_shield",
+      "source_triangulation",
+      "earnings_quality_check",
+      "schema_validator",
+      "prompt_compression"
+    ],
+    "evolutionIds": [
+      "evidence_grade_analyst",
+      "secure_browser",
+      "risk_governed_research"
+    ],
+    "finalStats": {
+      "quality": 96,
+      "robustness": 100,
+      "speed": 24,
+      "efficiency": 46,
+      "security": 100,
+      "vision": 10,
+      "structure": 100
+    }
+  },
+  "artifact": {
+    "id": "preset-35ddff5da5aaacd24320",
+    "digest": "sha256:c47476fa88ee304d3cc93ee04852f287b5b3e050dbc1b788fa9a2330893f5d59",
+    "status": "candidate",
+    "runtimeVerified": false,
+    "evidenceMode": "capability-simulation-v1",
+    "workflowSteps": 16,
+    "tools": [
+      "Search",
+      "Python"
+    ]
+  },
+  "codexContext": {
+    "available": true,
+    "skillId": "alphaear-signal-tracker-90641e",
+    "runId": "run-4c5f6a3f-468407d215",
+    "presetId": "preset-35ddff5da5aaacd24320"
+  },
+  "demoOutcome": "admitted → finance map → automatic mutations → victory → AgentPreset"
+}

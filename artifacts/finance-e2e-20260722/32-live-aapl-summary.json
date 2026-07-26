@@ -1,0 +1,17 @@
+{
+  "caseId": "finance-case-6266b782a74c416ea985aa35031aee9d",
+  "status": "succeeded",
+  "runtimeVerified": true,
+  "baseSkillVersionId": "sop-9e7795@2",
+  "evolvedSkillVersionId": null,
+  "baselineScore": 100.0,
+  "finalScore": 100.0,
+  "comparison": null,
+  "financeEvolutionRunId": "run-real-finance-case-6266b782a74c416ea985aa35031aee9d",
+  "agentPresetId": "preset-9695e25378e49ce5489c",
+  "agentPresetDigest": "sha256:097a6d1570a0632a0b036c5db45f8e55d026461fae384e4a07a83c8a875d2f0d",
+  "runtimeConfigVerified": true,
+  "universalExportBytes": 10057,
+  "sourceCount": 3,
+  "factCount": 26
+}

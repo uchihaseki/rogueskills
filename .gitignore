@@ -26,3 +26,6 @@ artifacts/**/*-events.jsonl
 artifacts/**/*-transcript.json
 artifacts/**/*-failure.json
 artifacts/**/latest
+artifacts/**/*.json
+!artifacts/**/*-summary.json
+!artifacts/**/*.schema.json

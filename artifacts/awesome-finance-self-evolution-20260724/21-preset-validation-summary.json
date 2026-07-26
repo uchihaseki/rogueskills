@@ -1,0 +1,23 @@
+{
+  "source": "browser Candidate AgentPreset on persisted real AAPL Verified Replay",
+  "sourceCaseId": "finance-case-6266b782a74c416ea985aa35031aee9d",
+  "runId": "run-4c5f6a3f-536cba5160",
+  "presetId": "preset-79bc498291a81646d238",
+  "presetDigest": "sha256:5561053689af44325fb3582ad91091ef8f8b02b05466f7e0554dbd81aea2abf1",
+  "validationId": "case-validation-b7de636ca4a0455594c68cea962ef64b",
+  "analystCalls": 2,
+  "baselineScore": 88.0,
+  "candidateScore": 100.0,
+  "scoreDelta": 12.0,
+  "runtimeVerified": true,
+  "accepted": true,
+  "promotion": {
+    "status": "created",
+    "promoted": true,
+    "evolvedSkillVersionId": "alphaear-signal-tracker-90641e@3",
+    "currentSkillVersionId": "alphaear-signal-tracker-90641e@3",
+    "error": null
+  },
+  "evidenceMode": "real-finance-case-v1",
+  "demoOutcome": "Evolution Candidate AgentPreset → same-source A/B → Runtime Binding"
+}
