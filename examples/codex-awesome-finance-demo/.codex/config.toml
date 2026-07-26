@@ -17,6 +17,12 @@ enabled_tools = [
   "get_case_run",
   "get_case_report",
   "get_case_evaluation",
+  "list_case_validations",
+  "get_latest_case_validation_context",
+  "get_case_validation_demo_script",
+  "validate_evolution_run_on_case",
+  "get_case_validation",
+  "get_case_validation_comparison",
 ]
 
 [mcp_servers.rogueskills-demo.env]

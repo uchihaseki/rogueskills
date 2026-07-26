@@ -60,6 +60,11 @@ npm run frontend:dev
 Finance Skill，不需要再点击导入按钮。选择任意 `alphaear-*` Skill，进入任务部署并运行
 Evolution 即可。默认地图码 `ROGUE-0714` 对当前 9 个 Skill 均可完成 Finance Map。
 
+默认数据库同时会加入 `Apple AAPL 公开财务分析` 真实数据案例。它来自已经持久化的
+SEC EDGAR、Company Facts 和截至日市场价格快照，随库文件为
+`backend/rogueskills/domain/data/finance-demo-aapl.json`。Victory 后页面会直接选中该案例，
+不需要先跑 Live 或导入数据库；Validation 始终使用 `verified_replay`，不会现场请求 Provider。
+
 现场可以在 Codex 中继续问：
 
 ```text
