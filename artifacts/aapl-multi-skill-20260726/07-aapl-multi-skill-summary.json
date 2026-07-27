@@ -1,0 +1,195 @@
+{
+  "source": "Awesome Finance Skills + persisted real AAPL source bundle",
+  "sourceRevision": "853f09b4d0baae747759ed31e21ed5c5b2316a5f",
+  "sourceCaseId": "finance-case-6266b782a74c416ea985aa35031aee9d",
+  "sourceCount": 3,
+  "evolution": {
+    "skillCount": 5,
+    "allVictorious": true,
+    "skills": [
+      {
+        "sourceName": "alphaear-signal-tracker",
+        "role": "signal-tracking",
+        "skillId": "alphaear-signal-tracker-90641e",
+        "runId": "run-4c5f6a3f-bdfe7f0adb",
+        "status": "victory",
+        "completedNodeCount": 12,
+        "mutationCount": 9,
+        "evolutionCount": 3,
+        "presetId": "preset-5cf66a891c695f47d38d",
+        "runtimeVerified": false
+      },
+      {
+        "sourceName": "alphaear-stock",
+        "role": "market-data",
+        "skillId": "alphaear-stock-57aa68",
+        "runId": "run-4c5f6a3f-f6314287ad",
+        "status": "victory",
+        "completedNodeCount": 12,
+        "mutationCount": 9,
+        "evolutionCount": 3,
+        "presetId": "preset-90ce65436f3fd4629763",
+        "runtimeVerified": false
+      },
+      {
+        "sourceName": "alphaear-search",
+        "role": "source-research",
+        "skillId": "alphaear-search-65bc7e",
+        "runId": "run-4c5f6a3f-51d5f85fe4",
+        "status": "victory",
+        "completedNodeCount": 12,
+        "mutationCount": 9,
+        "evolutionCount": 3,
+        "presetId": "preset-81267612809f56ca2814",
+        "runtimeVerified": false
+      },
+      {
+        "sourceName": "alphaear-sentiment",
+        "role": "sentiment-risk",
+        "skillId": "alphaear-sentiment-490ec4",
+        "runId": "run-4c5f6a3f-3ab120d20f",
+        "status": "victory",
+        "completedNodeCount": 12,
+        "mutationCount": 9,
+        "evolutionCount": 3,
+        "presetId": "preset-f9a176f41d2a1164a586",
+        "runtimeVerified": false
+      },
+      {
+        "sourceName": "alphaear-reporter",
+        "role": "report-synthesis",
+        "skillId": "alphaear-reporter-2a0e8f",
+        "runId": "run-4c5f6a3f-1bc00df56b",
+        "status": "victory",
+        "completedNodeCount": 12,
+        "mutationCount": 9,
+        "evolutionCount": 3,
+        "presetId": "preset-7f19da23cf41597297e0",
+        "runtimeVerified": false
+      }
+    ]
+  },
+  "merge": {
+    "runId": "merge-run-f9b160a6c9b39c64088f",
+    "presetId": "preset-b31b60de99b7942defc3",
+    "presetDigest": "sha256:dc4b2419d8fc49fd823ab7b3dc3f3ae2f0d0d120f31c2a05f5de4add45e7b5e1",
+    "strategy": "orchestrated-sequential-v1",
+    "primaryRole": "signal-tracking",
+    "supportingSkillCount": 4,
+    "routingRuleCount": 5,
+    "workflowStepCount": 57,
+    "runtimeVerifiedBeforeCase": false
+  },
+  "validation": {
+    "id": "case-validation-001cc7b214204e248b6efd54a1223838",
+    "analystCalls": 2,
+    "baselineScore": 88.0,
+    "candidateScore": 100.0,
+    "scoreDelta": 12.0,
+    "runtimeVerified": true,
+    "accepted": true,
+    "promotion": {
+      "status": "created",
+      "promoted": true,
+      "evolvedSkillVersionId": "alphaear-signal-tracker-90641e@3",
+      "currentSkillVersionId": "alphaear-signal-tracker-90641e@3",
+      "error": null
+    },
+    "multiSkillExecution": {
+      "strategy": "orchestrated-sequential-v1",
+      "primaryRole": "signal-tracking",
+      "supportingRoles": [
+        "market-data",
+        "source-research",
+        "sentiment-risk",
+        "report-synthesis"
+      ],
+      "routingRuleIds": [
+        "market-evidence",
+        "source-triangulation",
+        "sentiment-risk-check",
+        "signal-update",
+        "report-assembly"
+      ],
+      "sourceRunIds": [
+        "run-4c5f6a3f-bdfe7f0adb",
+        "run-4c5f6a3f-f6314287ad",
+        "run-4c5f6a3f-51d5f85fe4",
+        "run-4c5f6a3f-3ab120d20f",
+        "run-4c5f6a3f-1bc00df56b"
+      ]
+    }
+  },
+  "moduleAudit": {
+    "skills": {
+      "alphaear-signal-tracker": {
+        "modules": {
+          "agno": false,
+          "sqlite3": true
+        },
+        "ready": false,
+        "missing": [
+          "agno"
+        ]
+      },
+      "alphaear-stock": {
+        "modules": {
+          "pandas": false,
+          "requests": false,
+          "akshare": false,
+          "yfinance": false
+        },
+        "ready": false,
+        "missing": [
+          "pandas",
+          "requests",
+          "akshare",
+          "yfinance"
+        ]
+      },
+      "alphaear-search": {
+        "modules": {
+          "duckduckgo_search": false,
+          "requests": false,
+          "sqlite3": true
+        },
+        "ready": false,
+        "missing": [
+          "duckduckgo_search",
+          "requests"
+        ]
+      },
+      "alphaear-sentiment": {
+        "modules": {
+          "torch": false,
+          "transformers": false,
+          "sqlite3": true
+        },
+        "ready": false,
+        "missing": [
+          "torch",
+          "transformers"
+        ]
+      },
+      "alphaear-reporter": {
+        "modules": {
+          "sqlite3": true
+        },
+        "ready": true,
+        "missing": []
+      }
+    },
+    "nativeUpstreamRuntimeReady": false,
+    "nativeUpstreamScriptsExecuted": false,
+    "casePackReplayRuntimeReady": true,
+    "productionToolRouterImplemented": false,
+    "boundary": "The demo validates the merged preset, routing contract, evidence binding, and lineage. It does not execute the upstream AlphaEar scripts or live providers."
+  },
+  "excludedRelatedSkills": {
+    "alphaear-news": "Live news is outside the persisted AAPL source bundle.",
+    "alphaear-predictor": "Kronos/model weights are not needed for evidence replay.",
+    "alphaear-logic-visualizer": "Diagram rendering is presentation output, not case evidence.",
+    "alphaear-deepear-lite": "The live DeepEar endpoint is outside replay authority."
+  },
+  "demoOutcome": "5 independent Skill Evolutions → routed immutable merge → AAPL same-source A/B → Runtime Binding"
+}
