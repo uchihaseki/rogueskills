@@ -19,6 +19,16 @@ def load_agent_preset(preset: dict[str, Any]) -> dict[str, Any]:
     ]
     constraint_lines = [f"- {item}" for item in rules["constraints"]]
     developer_sections = [validated["agent"]["instruction"]]
+    multi_skill = validated.get("multiSkill")
+    if multi_skill:
+        route_lines = [
+            (
+                f"{route['order']}. When {route['when']}, use role "
+                f"{route['useSkillRole']}: {route['instruction']}"
+            )
+            for route in sorted(multi_skill["routing"], key=lambda item: item["order"])
+        ]
+        developer_sections.append("Skill routing:\n" + "\n".join(route_lines))
     if workflow_lines:
         developer_sections.append("Workflow:\n" + "\n".join(workflow_lines))
     if constraint_lines:
@@ -37,6 +47,11 @@ def load_agent_preset(preset: dict[str, Any]) -> dict[str, Any]:
         "presetDigest": validated["digest"],
         "project": validated["project"],
         "primarySkillVersionId": validated["primarySkill"]["skillVersionId"],
+        "supportingSkillVersionIds": [
+            item["skillVersionId"]
+            for item in (multi_skill or {}).get("supportingSkills", [])
+        ],
+        "multiSkill": multi_skill,
         "systemPrompt": (
             f"{validated['agent']['role']}\n\nObjective: {validated['agent']['objective']}"
         ),

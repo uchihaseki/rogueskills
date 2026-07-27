@@ -91,6 +91,30 @@ class CreateAgentPresetRequest(RunRevisionRequest):
     scenario: str = Field(min_length=1, max_length=500)
 
 
+class MultiSkillSupportingRun(StrictModel):
+    role: str = Field(min_length=1, max_length=80)
+    runId: str = Field(min_length=1, max_length=160)
+
+
+class MultiSkillRoutingRule(StrictModel):
+    id: str = Field(min_length=1, max_length=120)
+    order: int = Field(ge=1)
+    when: str = Field(min_length=1, max_length=500)
+    useSkillRole: str = Field(min_length=1, max_length=80)
+    instruction: str = Field(min_length=1, max_length=1000)
+    fallbackSkillRole: str | None = Field(default=None, max_length=80)
+
+
+class CreateMultiSkillPresetRequest(StrictModel):
+    primaryRunId: str = Field(min_length=1, max_length=160)
+    primaryRole: str = Field(min_length=1, max_length=80)
+    supportingRuns: list[MultiSkillSupportingRun] = Field(min_length=1, max_length=8)
+    routing: list[MultiSkillRoutingRule] = Field(min_length=1, max_length=24)
+    projectName: str = Field(min_length=1, max_length=160)
+    projectDescription: str = Field(min_length=1, max_length=2000)
+    scenario: str = Field(min_length=1, max_length=500)
+
+
 class FinanceBootstrapRequest(StrictModel):
     maxCommunitySkills: int = Field(default=2, ge=1, le=5)
     sopIds: list[str] | None = None

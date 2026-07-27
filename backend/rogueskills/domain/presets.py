@@ -35,6 +35,11 @@ def _digest(payload: dict[str, Any]) -> str:
 def agent_preset_digest(preset: dict[str, Any]) -> str:
     content = deepcopy(preset)
     content.pop("digest", None)
+    # ``multiSkill`` is an optional, backward-compatible extension.  Omitting it
+    # and explicitly storing ``null`` must produce the same digest so existing
+    # immutable 0.1.0 presets remain loadable after the extension ships.
+    if content.get("multiSkill") is None:
+        content.pop("multiSkill", None)
     return _digest(content)
 
 

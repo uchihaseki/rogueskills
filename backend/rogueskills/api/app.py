@@ -42,6 +42,7 @@ from rogueskills.application.errors import ApplicationError
 from rogueskills.application.finance_artifact_builder import FinanceRuntimeArtifactBuilder
 from rogueskills.application.finance_bootstrap import FinanceBootstrapService
 from rogueskills.application.finance_case_service import FinanceCaseService
+from rogueskills.application.multi_skill_preset_service import MultiSkillPresetService
 from rogueskills.application.preset_service import AgentPresetService
 from rogueskills.application.services import MaterialService, RunService, SkillService
 from rogueskills.case_packs.finance import build_finance_case_pack
@@ -67,6 +68,7 @@ from .models import (
     CreateCaseRunRequest,
     CreateCaseValidationRequest,
     CreateFinanceCaseRequest,
+    CreateMultiSkillPresetRequest,
     CreateRunRequest,
     DiscoveryImportBatchRequest,
     DiscoverySearchRunRequest,
@@ -104,6 +106,10 @@ def create_app(
     skills = SkillService(repository)
     runs = RunService(repository)
     presets = AgentPresetService(repository, preset_repository)
+    multi_skill_presets = MultiSkillPresetService(
+        skills=repository,
+        presets=preset_repository,
+    )
     awesome_finance = AwesomeFinanceSkillsService(repository)
     demo_finance_replay = DemoFinanceReplayService(
         skills=repository,
@@ -1103,6 +1109,21 @@ def create_app(
             scenario=payload.scenario,
         )
         return {"preset": preset, "created": created}
+
+    @app.post("/api/multi-skill-presets", status_code=201)
+    def create_multi_skill_preset(
+        payload: CreateMultiSkillPresetRequest,
+    ) -> dict[str, Any]:
+        merge_run, preset, created = multi_skill_presets.create(
+            primary_run_id=payload.primaryRunId,
+            primary_role=payload.primaryRole,
+            supporting_runs=[item.model_dump(mode="json") for item in payload.supportingRuns],
+            routing=[item.model_dump(mode="json") for item in payload.routing],
+            project_name=payload.projectName,
+            project_description=payload.projectDescription,
+            scenario=payload.scenario,
+        )
+        return {"mergeRun": merge_run, "preset": preset, "created": created}
 
     @app.get("/api/agent-presets")
     def list_agent_presets() -> dict[str, Any]:

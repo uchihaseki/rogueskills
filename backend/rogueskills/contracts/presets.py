@@ -37,6 +37,34 @@ class PresetPrimarySkill(PresetContract):
     genome: dict[str, Any]
 
 
+class PresetSupportingSkill(PresetContract):
+    role: str = Field(min_length=1, max_length=80)
+    skillId: str
+    skillVersionId: str
+    sourceRunId: str
+    sourcePresetId: str
+    sourcePresetDigest: str = Field(pattern=r"^sha256:[a-f0-9]{64}$")
+    genome: dict[str, Any]
+
+
+class PresetRoutingRule(PresetContract):
+    id: str = Field(min_length=1, max_length=120)
+    order: int = Field(ge=1)
+    when: str = Field(min_length=1, max_length=500)
+    useSkillRole: str = Field(min_length=1, max_length=80)
+    instruction: str = Field(min_length=1, max_length=1000)
+    fallbackSkillRole: str | None = Field(default=None, max_length=80)
+
+
+class PresetMultiSkill(PresetContract):
+    strategy: Literal["orchestrated-sequential-v1"] = "orchestrated-sequential-v1"
+    primaryRole: str = Field(min_length=1, max_length=80)
+    sourceRunIds: list[str] = Field(min_length=2, max_length=12)
+    supportingSkills: list[PresetSupportingSkill] = Field(min_length=1, max_length=8)
+    routing: list[PresetRoutingRule] = Field(min_length=1, max_length=24)
+    conflictPolicy: list[str] = Field(min_length=1, max_length=12)
+
+
 class PresetWorkflowStep(PresetContract):
     id: str
     order: int = Field(ge=1)
@@ -81,6 +109,7 @@ class AgentPreset(PresetContract):
     sourceRun: PresetSourceRun
     agent: PresetAgentProfile
     primarySkill: PresetPrimarySkill
+    multiSkill: PresetMultiSkill | None = None
     workflow: list[PresetWorkflowStep]
     tools: list[str]
     rules: PresetRules
@@ -96,6 +125,8 @@ class LoadedAgentConfig(PresetContract):
     presetDigest: str
     project: PresetProjectProfile
     primarySkillVersionId: str
+    supportingSkillVersionIds: list[str] = Field(default_factory=list)
+    multiSkill: PresetMultiSkill | None = None
     systemPrompt: str
     developerPrompt: str
     workflow: list[PresetWorkflowStep]

@@ -137,6 +137,17 @@ class FinancePresetCaseRuntime:
         report["executionKind"] = "agent_preset"
         report["candidatePresetId"] = preset["id"]
         report["candidatePresetDigest"] = preset["digest"]
+        multi_skill = preset.get("multiSkill")
+        if multi_skill:
+            report["multiSkillExecution"] = {
+                "strategy": multi_skill["strategy"],
+                "primaryRole": multi_skill["primaryRole"],
+                "supportingRoles": [
+                    item["role"] for item in multi_skill["supportingSkills"]
+                ],
+                "routingRuleIds": [item["id"] for item in multi_skill["routing"]],
+                "sourceRunIds": list(multi_skill["sourceRunIds"]),
+            }
         return report
 
 
