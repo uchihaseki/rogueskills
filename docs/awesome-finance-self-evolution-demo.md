@@ -160,3 +160,37 @@ GET  /api/skills/{skillId}
 注意：传统 Evolution 产物的 `evaluationEvidence.mode` 是
 `capability-simulation-v1`、`runtimeVerified=false`；Verified Replay 产物才是
 `real-finance-case-v1`、`runtimeVerified=true`。两者都是有效产物，但不能混称。
+
+## AAPL Multi-Skill 进化与合并扩展
+
+新增的可复现 runner 会选择 5 个相关 AlphaEar Skill：
+
+```text
+alphaear-stock → market-data
+alphaear-search → source-research
+alphaear-sentiment → sentiment-risk
+alphaear-signal-tracker → signal-tracking（Primary）
+alphaear-reporter → report-synthesis
+```
+
+每个 Skill 先独立完成 12 节点 Finance Evolution Run，再通过
+`POST /api/multi-skill-presets` 合并成带来源 Run、Skill Version、Preset Digest、
+路由规则和冲突策略的不可变 Candidate。最后使用同一个持久化 AAPL 来源包做
+Baseline Skill Version / Multi-Skill Candidate 同源 A/B：
+
+```sh
+PYTHONPATH=backend .venv/bin/python \
+  scripts/run_aapl_multi_skill_evolution_merge.py
+```
+
+默认结果写入 `artifacts/aapl-multi-skill-20260726/`。这条路径验证的是：
+
+- 5 条独立 Skill Evolution lineage；
+- Multi-Skill Merge Contract 与运行时配置加载；
+- Case Pack 权威路由、事实级 evidence binding 和 Runtime Binding；
+- AAPL Verified Replay 的 `runtimeVerified`、`accepted` 与 `promoted` 独立状态。
+
+边界也会写入 `06-native-module-audit.json`：当前 demo 不执行上游 AlphaEar 原生脚本，
+也没有实现生产级外部 Tool Router。`agno`、`pandas`、`requests`、`akshare`、
+`yfinance`、`duckduckgo_search`、`torch`、`transformers` 等可选模块仍需在原生 live
+运行环境安装；这不影响离线、可复现的 AAPL Case Pack 验证路径。

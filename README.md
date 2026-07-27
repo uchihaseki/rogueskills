@@ -133,5 +133,7 @@ tests/
 
 Awesome Finance Skills 的可复现导入与自进化演示见
 [`docs/awesome-finance-self-evolution-demo.md`](docs/awesome-finance-self-evolution-demo.md)。
+同一文档也包含 AAPL 五 Skill 独立进化、路由合并和 Verified Replay A/B 扩展；
+可直接运行 `npm run demo:aapl-multi-skill`。
 Codex 现场配置位于
 [`examples/codex-awesome-finance-demo`](examples/codex-awesome-finance-demo)。
